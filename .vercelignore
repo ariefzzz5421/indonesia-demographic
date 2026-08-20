@@ -1,0 +1,6 @@
+# Runtime needs index.html, styles/, src/ and vendor/ — nothing else.
+node_modules
+package-lock.json
+data
+tools
+README.md
