@@ -1,0 +1,26 @@
+{
+  "name": "indonesia-demographic",
+  "version": "1.0.0",
+  "description": "Nusantara 3D — interactive WebGL visualisation of Indonesian demographics and economy",
+  "scripts": {
+    "dev": "node tools/serve.mjs 5173",
+    "start": "node tools/serve.mjs 5173",
+    "vendor": "npm install --no-save three && node tools/vendor.mjs",
+    "build:geo": "python3 tools/build_geo.py data/indonesia-prov.geojson src/data/geo.json",
+    "build:stats": "python3 tools/build_stats.py src/data/stats.js",
+    "build": "npm run build:geo && npm run build:stats"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ariefzzz5421/indonesia-demographic.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ariefzzz5421/indonesia-demographic/issues"
+  },
+  "homepage": "https://github.com/ariefzzz5421/indonesia-demographic#readme",
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "private": true,
+  "type": "module"
+}

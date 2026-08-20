@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="id" data-lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Nusantara 3D — Peta Demografi & Ekonomi Indonesia</title>
+<meta name="description" content="Visualisasi 3D interaktif demografi dan ekonomi Indonesia: 34 unit provinsi, jumlah penduduk, PDB, dan PDB per kapita berdasarkan data BPS, IMF, dan Bank Dunia." />
+<meta name="color-scheme" content="dark" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='16' fill='%23ce1126'/%3E%3Crect y='16' width='32' height='16' fill='%23fff'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="./styles/main.css" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/build/three.module.min.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<canvas id="stage" aria-label="Peta 3D Indonesia"></canvas>
+
+<!-- ── Loading ─────────────────────────────────────────────────────── -->
+<div id="boot" class="boot">
+  <div class="boot__inner">
+    <div class="boot__flag" aria-hidden="true"><i></i><i></i></div>
+    <div class="boot__title">NUSANTARA<span>3D</span></div>
+    <div class="boot__sub" data-i18n="boot.sub">Menyusun 34 unit provinsi &amp; 17.380 pulau</div>
+    <div class="boot__bar"><div class="boot__fill" id="bootFill"></div></div>
+    <div class="boot__pct" id="bootPct">0%</div>
+  </div>
+</div>
+
+<!-- ── HUD ─────────────────────────────────────────────────────────── -->
+<div id="hud" class="hud" hidden>
+
+  <header class="brand">
+    <div class="brand__flag" aria-hidden="true"><i></i><i></i></div>
+    <div class="brand__text">
+      <h1>Nusantara<span>3D</span></h1>
+      <p data-i18n="brand.sub">Demografi &amp; ekonomi Republik Indonesia</p>
+    </div>
+  </header>
+
+  <div class="topright">
+    <div class="seg" role="group" aria-label="Language">
+      <button class="seg__btn is-on" data-lang-set="id">ID</button>
+      <button class="seg__btn" data-lang-set="en">EN</button>
+    </div>
+    <button class="iconbtn" id="btnAbout" title="Sumber data" aria-label="Sumber data">i</button>
+    <button class="iconbtn" id="btnReset" title="Reset kamera" aria-label="Reset kamera">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+    </button>
+  </div>
+
+  <!-- Left rail: national key figures -->
+  <section class="rail rail--left" id="railLeft">
+    <div class="rail__head">
+      <span class="dot"></span>
+      <h2 data-i18n="kpi.head">Republik Indonesia</h2>
+    </div>
+
+    <article class="kpi kpi--hero">
+      <div class="kpi__label" data-i18n="kpi.pop">Jumlah penduduk</div>
+      <div class="kpi__value"><span data-count="population">0</span></div>
+      <div class="kpi__note"><span data-i18n="kpi.popNote">Proyeksi BPS, pertengahan 2025</span> · <span data-i18n="kpi.rank4">peringkat 4 dunia</span></div>
+    </article>
+
+    <div class="kpi-grid">
+      <article class="kpi">
+        <div class="kpi__label">PDB <span data-i18n="kpi.nominal">nominal</span></div>
+        <div class="kpi__value kpi__value--sm">US$<span data-count="gdp">0</span></div>
+        <div class="kpi__note">2024 · <span data-i18n="kpi.rank16">peringkat 16 dunia</span></div>
+      </article>
+      <article class="kpi">
+        <div class="kpi__label">PDB <span data-i18n="kpi.percap">per kapita</span></div>
+        <div class="kpi__value kpi__value--sm">US$<span data-count="gdppc">0</span></div>
+        <div class="kpi__note">2024 · Rp 78,62 <span data-i18n="unit.million">juta</span></div>
+      </article>
+      <article class="kpi">
+        <div class="kpi__label" data-i18n="kpi.growth">Pertumbuhan ekonomi</div>
+        <div class="kpi__value kpi__value--sm">5,03<span class="u">%</span></div>
+        <div class="kpi__note" data-i18n="kpi.growthNote">Tahunan 2024 · BPS</div>
+      </article>
+      <article class="kpi">
+        <div class="kpi__label">PDB (PPP)</div>
+        <div class="kpi__value kpi__value--sm">US$4,66<span class="u">T</span></div>
+        <div class="kpi__note">2024 · <span data-i18n="kpi.rank8">peringkat 8 dunia</span></div>
+      </article>
+    </div>
+
+    <div class="spark">
+      <div class="spark__head">
+        <span data-i18n="spark.title">PDB nominal &amp; penduduk</span>
+        <span class="spark__yr">2015–2025</span>
+      </div>
+      <svg id="sparkSvg" viewBox="0 0 260 76" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="spark__legend">
+        <span><i class="sw sw--gdp"></i>PDB</span>
+        <span><i class="sw sw--pop"></i><span data-i18n="spark.pop">Penduduk</span></span>
+      </div>
+    </div>
+
+    <div class="factstrip">
+      <div><b>38</b><span data-i18n="fact.prov">provinsi</span></div>
+      <div><b>514</b><span data-i18n="fact.reg">kab./kota</span></div>
+      <div><b>17.380</b><span data-i18n="fact.isl">pulau</span></div>
+    </div>
+  </section>
+
+  <!-- Right rail: ranking -->
+  <section class="rail rail--right" id="railRight">
+    <div class="rail__head">
+      <span class="dot dot--alt"></span>
+      <h2 id="rankTitle">Peringkat provinsi</h2>
+    </div>
+    <ol class="rank" id="rankList"></ol>
+    <p class="rail__foot" data-i18n="rank.foot">Klik untuk memusatkan kamera</p>
+  </section>
+
+  <!-- Bottom: metric tabs + timeline -->
+  <section class="dock">
+    <div class="tabs" id="metricTabs" role="tablist"></div>
+    <div class="scrub">
+      <button class="playbtn" id="btnPlay" aria-label="Putar animasi tahun">
+        <svg class="ico-play" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <svg class="ico-pause" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" hidden><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+      </button>
+      <div class="scrub__track">
+        <input type="range" id="yearRange" min="2015" max="2025" step="1" value="2025" aria-label="Tahun" />
+        <div class="scrub__ticks" id="yearTicks"></div>
+      </div>
+      <div class="scrub__read">
+        <div class="scrub__yr" id="yearLabel">2025</div>
+        <div class="scrub__meta" id="yearMeta"></div>
+      </div>
+    </div>
+    <div class="legend" id="legend">
+      <span class="legend__lo">0</span>
+      <div class="legend__bar" id="legendBar"></div>
+      <span class="legend__hi">max</span>
+    </div>
+  </section>
+
+  <!-- Province detail -->
+  <aside class="detail" id="detail" hidden>
+    <button class="detail__x" id="detailClose" aria-label="Tutup">&times;</button>
+    <div class="detail__eyebrow" id="dEyebrow"></div>
+    <h3 id="dName"></h3>
+    <div class="detail__cap" id="dCap"></div>
+    <div class="detail__rows" id="dRows"></div>
+    <div class="detail__bars" id="dBars"></div>
+    <p class="detail__note" id="dNote" hidden></p>
+  </aside>
+
+  <!-- Hover tooltip -->
+  <div class="tip" id="tip" hidden>
+    <div class="tip__name" id="tipName"></div>
+    <div class="tip__val" id="tipVal"></div>
+    <div class="tip__sub" id="tipSub"></div>
+  </div>
+
+  <div class="hint" id="hint" data-i18n="hint">Seret untuk memutar · gulir untuk zoom · klik provinsi untuk detail</div>
+</div>
+
+<!-- Sources modal -->
+<div class="modal" id="about" hidden>
+  <div class="modal__card">
+    <button class="modal__x" id="aboutClose" aria-label="Tutup">&times;</button>
+    <h3 data-i18n="about.title">Sumber &amp; metodologi</h3>
+    <div class="modal__body" id="aboutBody"></div>
+  </div>
+</div>
+
+<noscript><p style="color:#fff;padding:2rem;font:16px system-ui">Visualisasi ini memerlukan JavaScript dan WebGL.</p></noscript>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
