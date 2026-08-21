@@ -1,8 +1,10 @@
 # Nusantara 3D
 
-An interactive WebGL visualisation of Indonesia's demographics and economy — the
-archipelago rendered as an extruded 3D map you can orbit, zoom and interrogate,
-with a procedurally generated Merah Putih flying over Jakarta.
+An atlas globe you can spin, with the whole world named and only Indonesia
+interactive. The 34 Indonesian provinces stand up off the sphere as data columns
+you can orbit, zoom and interrogate; a procedurally generated Merah Putih flies
+over Jakarta. Every other country is drawn and labelled, but nothing outside
+Indonesia responds to a click.
 
 Everything runs from a static file server. No build step, no CDN, no API keys.
 
@@ -30,9 +32,17 @@ Column **height** and **colour** both encode the active metric. Six contour
 bands run up each column so relative height is readable without consulting the
 legend.
 
-**Interaction** — orbit and zoom, hover any province for a tooltip, click to
-open its detail card and fly the camera to frame it, scrub the year, play the
-2015–2025 animation, switch between Indonesian and English.
+**The globe** — 217 countries painted into an equirectangular atlas texture with
+borders, a 15-degree graticule and an atmospheric limb. Country names are shown
+in Indonesian or English, culled at the horizon, thinned by Natural Earth's own
+label rank as you zoom out, and never allowed to overlap a province label or a
+glass panel. Indonesia's neighbours stay named at every zoom level.
+
+**Interaction** — spin the globe and zoom, hover any Indonesian province for a
+tooltip, click to open its detail card and arc the camera around to frame it,
+scrub the year, play the 2015–2025 animation, switch between Indonesian and
+English. Only the province chips are in the pick list, so a click anywhere else
+on the planet simply clears the selection.
 
 **Deep links** — the URL hash carries the full view state:
 `#/gdpPerCapita/2024/papua`. Reload and back/forward both work.
@@ -47,6 +57,7 @@ open its detail card and fly the camera to frame it, scrub the year, play the
 | USD GDP series, 2025 estimate | IMF World Economic Outlook, World Bank |
 | GDP share by island group | BPS, spatial economic structure 2024 |
 | Province boundaries | BAKOSURTANAL / BIG 1:250,000 base map, via [`ans-4175/peta-indonesia-geojson`](https://github.com/ans-4175/peta-indonesia-geojson) |
+| World country outlines and label anchors | Natural Earth 1:50m Admin 0 |
 
 Headline figures: **284,438,782** people (BPS mid-2025 projection), nominal GDP
 of **US$1.40 trillion** and GDP per capita of **US$4,960** for 2024, real growth
@@ -93,25 +104,40 @@ total of 281.6 million; the gap is rounding in the provincial estimates.
 index.html            importmap → vendor/three, HUD markup
 styles/main.css       design tokens, glass panels, responsive layout
 src/
-  main.js             bootstrap, picking, camera moves, deep links
+  main.js             bootstrap, picking, camera flights, deep links
   metrics.js          the four metrics: accessors, ramps, scales
-  data/stats.js       generated dataset          ← tools/build_stats.py
-  data/geo.json       projected province polygons ← tools/build_geo.py
+  data/stats.js       generated dataset            ← tools/build_stats.py
+  data/geo.json       province polygons, lon/lat   ← tools/build_geo.py
+  data/world.json     country outlines + labels    ← tools/build_world.py
   scene/
     world.js          renderer, camera, controls, bloom, adaptive quality
-    landmask.js       provinces rasterised to an RGB bathymetry texture
-    ocean.js          analytic wave shader, shelf, foam, graticule
-    sky.js            gradient dome + twinkling starfield
-    provinces.js      extruded columns, spring animation, highlighting
+    globe.js          the atlas sphere: canvas-painted map, mask, atmosphere
+    sky.js            twinkling starfield
+    provinces.js      radially extruded chips, spring animation, highlighting
     motes.js          population motes sampled inside the real polygons
     flag.js           the Merah Putih, cloth and all, in a shader
-  ui/                 HUD controller, sparkline, floating map labels
-  util/               colour ramps, easing, formatting, i18n
+  ui/                 HUD controller, sparkline, globe labels
+  util/               spherical geo, colour ramps, easing, formatting, i18n
 tools/                data pipeline, vendoring, static server
 vendor/three/         pinned Three.js modules (see `npm run vendor`)
 ```
 
 ### A few things worth knowing
+
+**The world is a texture; Indonesia is geometry.** Country outlines are
+rasterised into a 4096x2048 canvas rather than built as meshes. At that size one
+degree of longitude is 11 pixels — more resolution than 1:50m Natural Earth
+carries — so the entire planet costs two textures and one draw call, leaving the
+geometry budget for the provinces that actually have to be interactive. A
+second, half-resolution canvas holds a land/sea mask so the shader can give the
+oceans a specular sheen the land does not get.
+
+**Province chips never rebuild their geometry.** Every vertex stores its unit
+direction from the globe's centre and a level of 0 or 1, and the vertex shader
+places it at `dir * (base + level * height)`. Changing metric or year is one
+uniform write per province. `position` deliberately stays at the un-extruded
+footprint, which is what the raycaster reads — so clicking picks a province's
+real territory rather than wherever its column happens to lean.
 
 **The flag is generated, not textured.** The cloth is a pinned membrane: three
 travelling waves of decreasing wavelength cross it, a two-frequency envelope
@@ -120,12 +146,6 @@ stretch. Normals come from finite differences of that same displacement field,
 so the folds light correctly. Red and white come from one `smoothstep` on the
 2:3 plane.
 
-**The ocean rebuilds its wave gradient analytically in the fragment stage**, so
-lighting stays crisp regardless of tessellation. Bathymetry comes from
-`landmask.js`, which rasterises all 491 rings into one `Path2D` and fills it
-three times at different blur radii — hard mask, shelf, wide haze — into the R,
-G and B channels of a single texture.
-
 **Population motes are area-weighted samples of the triangulated polygons**, not
 rejection samples in a bounding box. That matters here: Kepulauan Riau is 147
 islets scattered across an ocean-sized bounding box and would otherwise be
@@ -133,8 +153,11 @@ starved of motes. Their heights and colours ride 34-element uniform arrays, so
 the whole field animates with 34 uniform writes per frame.
 
 **Columns animate on a critically damped spring** with a west-to-east stagger,
-so switching metric reads as a wave rolling across the archipelago. Geometry is
-extruded to a depth of exactly 1 and driven through `scale.z` — no rebuilds.
+so switching metric reads as a wave rolling across the archipelago. Camera moves
+slerp around the sphere rather than cutting through it, and framing is solved on
+both axes at once — Indonesia is 46 degrees wide and 17 tall, so fitting it by
+width alone would work while fitting a compact province by width alone would put
+the camera inside its own columns.
 
 **Quality adapts.** The renderer watches its real frame rate against the wall
 clock and steps down — device pixel ratio, then bloom, then wave octaves and the
@@ -149,8 +172,11 @@ flight takes three seconds even at 5 fps. Force a level with `?quality=low`,
 ## Regenerating the data
 
 ```bash
-npm run build:stats   # src/data/stats.js  — edit tools/build_stats.py first
-npm run build:geo     # src/data/geo.json  — from data/indonesia-prov.geojson
+npm run data          # everything below, in order
+npm run data:fetch    # pull the Natural Earth source (3 MB, not vendored)
+npm run data:geo      # src/data/geo.json   — from data/indonesia-prov.geojson
+npm run data:world    # src/data/world.json — from Natural Earth 1:50m
+npm run data:stats    # src/data/stats.js   — edit tools/build_stats.py first
 npm run vendor        # refresh vendor/three after bumping the dependency
 ```
 

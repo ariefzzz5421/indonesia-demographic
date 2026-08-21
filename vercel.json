@@ -1,9 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "outputDirectory": ".",
-  "installCommand": "echo 'no runtime dependencies — Three.js is vendored in vendor/'",
-  "buildCommand": "echo 'static site — nothing to build'",
   "headers": [
     {
       "source": "/vendor/(.*)",

@@ -1,70 +1,34 @@
 /**
  * Nusantara 3D — entry point.
  *
- * Loads the geometry and statistics, assembles the scene, and keeps the HUD and
- * the 3D map pointing at the same slice of data.
+ * An atlas globe you can spin, with the whole world named and only Indonesia
+ * interactive: the 34 province chips are the only meshes in the pick list, so a
+ * click anywhere else on the planet simply clears the selection.
  */
 
 import * as THREE from 'three';
 import { DATA } from './data/stats.js';
 import { METRICS } from './metrics.js';
-import { createWorld, HORIZON } from './scene/world.js';
-import { buildLandMask } from './scene/landmask.js';
-import { createOcean } from './scene/ocean.js';
+import { createWorld, SUN_DIR } from './scene/world.js';
+import { createGlobe } from './scene/globe.js';
 import { createSky } from './scene/sky.js';
 import { createProvinces } from './scene/provinces.js';
 import { createMotes } from './scene/motes.js';
 import { createFlag } from './scene/flag.js';
 import { createHud } from './ui/hud.js';
 import { createLabels } from './ui/labels.js';
+import { GLOBE_RADIUS, lonLatToDir } from './util/geo.js';
 import { easeInOutCubic, tween } from './util/tween.js';
 import { rampCss } from './util/color.js';
+import { lang, onLang } from './util/i18n.js';
 
-const SUN_DIR = new THREE.Vector3(-58, 62, 44);
-
-// Jakarta, projected with the same constants as tools/build_geo.py.
-const PROJ = { lon0: 118.1035, lat0: -2.5210, scale: 2.1825 };
-const project = (lon, lat) => new THREE.Vector3(
-  (lon - PROJ.lon0) * PROJ.scale, 0, -(lat - PROJ.lat0) * PROJ.scale
-);
-const JAKARTA = project(106.8456, -6.2088);
-
-// Half-extent of the archipelago in world units, plus a little breathing room.
-const MAP_HALF_X = 51.5;
-const MAP_HALF_Z = 20;
-
-/**
- * Frame the whole country for the current viewport. On a wide screen the map
- * is squeezed into the gap between the two glass rails; on a phone it uses the
- * full width and a wider lens, because a 3:1 archipelago on a 1:2 screen needs
- * all the field of view it can get.
- */
-function computeOverview(camera) {
-  const portrait = innerWidth < 900;
-  camera.fov = portrait ? 55 : 40;
-  camera.updateProjectionMatrix();
-
-  const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
-  const tanH = tanV * camera.aspect;
-
-  // Measured when the HUD is up; the clamp mirrors --rail-w for the first
-  // frame, when the rails are still hidden behind the loader.
-  const measured = document.getElementById('railLeft')?.offsetWidth ?? 0;
-  const railWidth = measured || Math.min(318, Math.max(248, innerWidth * 0.2));
-  const railW = portrait ? 12 : railWidth + 24;
-  // A sliver of the extreme tips may sit under the translucent rails.
-  const usable = Math.max(0.34, (innerWidth - 2 * railW + 30) / innerWidth);
-
-  const forWidth = MAP_HALF_X / (tanH * usable);
-  const forDepth = MAP_HALF_Z / (tanV * 0.62);
-  const distance = THREE.MathUtils.clamp(Math.max(forWidth, forDepth), 60, 380);
-
-  const tilt = THREE.MathUtils.degToRad(portrait ? 48 : 52);
-  const target = new THREE.Vector3(0, 4, 2);
-  const position = target.clone()
-    .add(new THREE.Vector3(0, Math.sin(tilt), Math.cos(tilt)).multiplyScalar(distance));
-  return { position, target };
-}
+const FOCUS_A3 = 'IDN';
+// Centre of the archipelago. Natural Earth's own label anchor for Indonesia
+// sits over Sumatra, which is not where you want the camera to land.
+const FOCUS_LON = 118.1;
+const FOCUS_LAT = -2.5;
+const FOCUS_SPAN = 45.8;      // degrees of longitude, Sabang to Merauke
+const JAKARTA = { lon: 106.85, lat: -6.21 };
 
 const boot = document.getElementById('boot');
 const bootFill = document.getElementById('bootFill');
@@ -76,38 +40,51 @@ function progress(value) {
   bootPct.textContent = `${pct}%`;
 }
 
-async function start() {
-  progress(0.08);
+/** Spherical interpolation between two unit vectors. */
+function slerpDir(from, to, k, target) {
+  const dot = THREE.MathUtils.clamp(from.dot(to), -1, 1);
+  const omega = Math.acos(dot);
+  if (omega < 1e-4) return target.copy(to);
+  const sin = Math.sin(omega);
+  return target
+    .copy(from).multiplyScalar(Math.sin((1 - k) * omega) / sin)
+    .addScaledVector(to, Math.sin(k * omega) / sin)
+    .normalize();
+}
 
-  const geo = await fetch(new URL('./data/geo.json', import.meta.url)).then((r) => {
-    if (!r.ok) throw new Error(`geo.json: ${r.status}`);
-    return r.json();
-  });
-  progress(0.3);
+async function start() {
+  progress(0.06);
+
+  const [geo, world] = await Promise.all([
+    fetch(new URL('./data/geo.json', import.meta.url)).then((r) => {
+      if (!r.ok) throw new Error(`geo.json: ${r.status}`);
+      return r.json();
+    }),
+    fetch(new URL('./data/world.json', import.meta.url)).then((r) => {
+      if (!r.ok) throw new Error(`world.json: ${r.status}`);
+      return r.json();
+    }),
+  ]);
+  progress(0.28);
 
   const canvas = document.getElementById('stage');
-  const world = createWorld(canvas);
-  const { scene, camera, controls, renderer, onFrame } = world;
+  const stage = createWorld(canvas);
+  const { scene, camera, controls, renderer, onFrame } = stage;
 
-  // ── Scenery ───────────────────────────────────────────────────────
-  const sky = createSky({ sunDir: SUN_DIR, horizon: HORIZON });
+  const sky = createSky();
   scene.add(sky.group);
-  progress(0.4);
+  progress(0.36);
 
-  const mask = buildLandMask(geo, 2048);
-  progress(0.55);
-
-  const ocean = createOcean({
-    maskTexture: mask.texture,
-    bounds: mask.bounds,
-    worldW: mask.worldW,
-    worldH: mask.worldH,
-    horizon: HORIZON,
+  // A phone does not need a 4K atlas, and painting one costs real time.
+  const globe = createGlobe(world, {
+    sunDir: SUN_DIR,
+    highlightA3: FOCUS_A3,
+    textureSize: innerWidth < 900 ? 2048 : 4096,
   });
-  scene.add(ocean.mesh);
-  progress(0.64);
+  scene.add(globe.group);
+  progress(0.6);
 
-  const provinces = createProvinces(geo);
+  const provinces = createProvinces(geo, { sunDir: SUN_DIR });
   scene.add(provinces.group);
   progress(0.82);
 
@@ -117,8 +94,9 @@ async function start() {
   progress(0.9);
 
   const flag = createFlag({
-    position: JAKARTA,
-    poleHeight: 27,
+    lon: JAKARTA.lon,
+    lat: JAKARTA.lat,
+    poleHeight: 26,
     width: 9,
     sunDir: SUN_DIR,
     sunColor: '#ffd7a8',
@@ -126,8 +104,77 @@ async function start() {
   });
   scene.add(flag.group);
 
+  const FOCUS_DIR = lonLatToDir(FOCUS_LON, FOCUS_LAT, new THREE.Vector3());
+
+  // ── Camera framing ────────────────────────────────────────────────
+  /**
+   * Distance from the globe's centre that fits a lon/lat span on screen.
+   *
+   * Both axes are checked independently, because Indonesia is 46 degrees wide
+   * and 17 tall: fitting it by width alone would work, but fitting a compact
+   * province by width alone would put the camera inside its own columns. The
+   * horizontal budget is the gap between the glass rails; the vertical budget
+   * is what is left between the header and the dock.
+   *
+   * The floor of 44 units above the surface is what keeps a 13-unit column
+   * reading as a data column rather than a skyscraper.
+   */
+  function distanceFor(spanLon, spanLat, latMid = FOCUS_LAT) {
+    const portrait = innerWidth < 900;
+    camera.fov = portrait ? 55 : 40;
+    camera.updateProjectionMatrix();
+
+    const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+    const tanH = tanV * camera.aspect;
+
+    const measured = document.getElementById('railLeft')?.offsetWidth ?? 0;
+    const railWidth = measured || Math.min(318, Math.max(248, innerWidth * 0.2));
+    const railW = portrait ? 12 : railWidth + 24;
+    // Capped below 1 so the archipelago always keeps a margin — without it
+    // a portrait phone frames Papua exactly on the screen edge.
+    const usableH = THREE.MathUtils.clamp((innerWidth - 2 * railW + 30) / innerWidth, 0.34, 0.94);
+    const usableV = portrait ? 0.62 : 0.74;
+
+    const rad = THREE.MathUtils.degToRad;
+    const cosLat = Math.cos(rad(latMid));
+    const chordX = 2 * GLOBE_RADIUS * Math.sin(rad(spanLon * cosLat) / 2);
+    const chordY = 2 * GLOBE_RADIUS * Math.sin(rad(spanLat) / 2);
+
+    const surfaceDistance = Math.max(
+      chordX / 2 / usableH / tanH,
+      chordY / 2 / usableV / tanV
+    );
+    return THREE.MathUtils.clamp(
+      GLOBE_RADIUS + surfaceDistance,
+      GLOBE_RADIUS + 44,
+      GLOBE_RADIUS * 4.1
+    );
+  }
+
+  const overviewDistance = () => distanceFor(FOCUS_SPAN, 16.8, FOCUS_LAT);
+
   // ── HUD ───────────────────────────────────────────────────────────
-  const labels = createLabels(document.getElementById('hud'));
+  const labels = createLabels(document.getElementById('hud'), { focusA3: FOCUS_A3 });
+
+  const countryDirs = world.countries.map((c) => {
+    const isFocus = c.a3 === FOCUS_A3;
+    const lon = isFocus ? FOCUS_LON : c.label[0];
+    const lat = isFocus ? FOCUS_LAT : c.label[1];
+    return {
+      a3: c.a3,
+      name: c.name,
+      nameId: c.nameId,
+      rank: isFocus ? 1 : c.rank,
+      dir: lonLatToDir(lon, lat, new THREE.Vector3()),
+    };
+  });
+
+  function refreshCountryLabels() {
+    const id = lang() === 'id';
+    labels.setCountries(
+      countryDirs.map((c) => ({ ...c, name: id ? c.nameId : c.name }))
+    );
+  }
 
   const hud = createHud({
     data: DATA,
@@ -135,42 +182,35 @@ async function start() {
     onYear: (s) => { applySlice(s); syncHash(); },
     onHover: (id) => setHover(id),
     onSelect: (id) => setSelected(id, true),
-    onReset: () => {
-      setSelected(null);
-      const view = computeOverview(camera);
-      flyTo(view.position, view.target, 1.1);
-    },
+    onReset: () => { setSelected(null); flyToDir(FOCUS_DIR, overviewDistance(), 1.3); },
   });
 
-  // Quality steps down on weak hardware; the ocean and the mote field are the
-  // two things worth sacrificing first.
-  world.onQuality((quality) => {
-    ocean.setQuality(quality);
+  stage.onQuality((quality) => {
     motes.points.visible = quality.index >= 1;
   });
 
   function applySlice(s) {
     provinces.apply(s.metric.ramp, s.values, s.norm);
-    refreshLabelSet();
+    refreshProvinceLabels();
   }
 
-  function refreshLabelSet() {
+  function refreshProvinceLabels() {
     const metric = METRICS[hud.metricId];
     const { values, norm } = hud.slice();
-    labels.set(
-      hud.leaders(6).map((entry) => {
+    labels.setProvinces(
+      hud.leaders(5).map((entry) => {
         const unit = provinces.byId.get(entry.id);
-        const tNorm = Math.min(1, Math.max(0, norm(values.get(entry.id))));
-        return { unit, text: entry.text, color: rampCss(metric.ramp, tNorm) };
+        const t = Math.min(1, Math.max(0, norm(values.get(entry.id))));
+        return { unit, text: entry.text, color: rampCss(metric.ramp, t) };
       }).filter((e) => e.unit)
     );
   }
 
+  onLang(() => { refreshCountryLabels(); refreshProvinceLabels(); });
+  refreshCountryLabels();
   applySlice(hud.slice());
 
   // ── Deep links ────────────────────────────────────────────────────
-  // #/<metric>/<year>/<provinceId> keeps the current view shareable and
-  // survives reload / back-forward.
   let writingHash = false;
 
   function syncHash() {
@@ -193,6 +233,8 @@ async function start() {
   addEventListener('hashchange', () => { if (!writingHash) readHash(true); });
 
   // ── Picking ───────────────────────────────────────────────────────
+  // provinces.pickables is the entire pick list, so Indonesia is the only
+  // thing on the globe a click can land on.
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2(-2, -2);
   const screen = { x: 0, y: 0 };
@@ -219,6 +261,14 @@ async function start() {
     syncHash();
   }
 
+  /** Put the camera straight onto a province, without the flight. */
+  function snapToProvince(id) {
+    const unit = provinces.byId.get(id);
+    if (!unit) return;
+    camera.position.copy(unit.dir).multiplyScalar(frameDistance(unit));
+    camera.lookAt(controls.target);
+  }
+
   canvas.addEventListener('pointermove', (e) => {
     pointerInside = true;
     screen.x = e.clientX;
@@ -230,13 +280,15 @@ async function start() {
   canvas.addEventListener('pointerleave', () => { pointerInside = false; setHover(null); });
 
   let downAt = null;
-  canvas.addEventListener('pointerdown', (e) => { downAt = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+  canvas.addEventListener('pointerdown', (e) => {
+    downAt = { x: e.clientX, y: e.clientY, t: performance.now() };
+  });
   canvas.addEventListener('pointerup', (e) => {
     if (!downAt) return;
     const moved = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y);
     const quick = performance.now() - downAt.t < 500;
     downAt = null;
-    if (moved > 6 || !quick) return;   // that was an orbit, not a click
+    if (moved > 6 || !quick) return;   // that was a spin, not a click
 
     pointer.x = (e.clientX / innerWidth) * 2 - 1;
     pointer.y = -(e.clientY / innerHeight) * 2 + 1;
@@ -252,39 +304,44 @@ async function start() {
   }
 
   // ── Camera moves ──────────────────────────────────────────────────
-  const fromPos = new THREE.Vector3();
-  const fromTarget = new THREE.Vector3();
-  const toPos = new THREE.Vector3();
-  const toTarget = new THREE.Vector3();
+  const fromDir = new THREE.Vector3();
+  const toDir = new THREE.Vector3();
+  const scratchDir = new THREE.Vector3();
 
-  function flyTo(position, target, duration = 1.2, ease = easeInOutCubic) {
-    fromPos.copy(camera.position);
-    fromTarget.copy(controls.target);
-    toPos.copy(position);
-    toTarget.copy(target);
+  /** Arc the camera around the globe to sit over `dir`, ending `distance` out. */
+  function flyToDir(dir, distance, duration = 1.3, ease = easeInOutCubic) {
+    fromDir.copy(camera.position).normalize();
+    toDir.copy(dir).normalize();
+    const fromDistance = camera.position.length();
     flying = true;
     controls.enabled = false;
     tween({
       duration,
       ease,
       onUpdate: (k) => {
-        camera.position.lerpVectors(fromPos, toPos, k);
-        controls.target.lerpVectors(fromTarget, toTarget, k);
+        slerpDir(fromDir, toDir, k, scratchDir);
+        camera.position.copy(scratchDir).multiplyScalar(
+          fromDistance + (distance - fromDistance) * k
+        );
       },
       onComplete: () => { flying = false; controls.enabled = true; },
     });
   }
 
-  const FRAME_DIR = new THREE.Vector3(0.22, 0.78, 0.58).normalize();
+  /** How far back to sit for one province to fill the frame comfortably. */
+  function frameDistance(unit) {
+    const [minLon, minLat, maxLon, maxLat] = unit.bbox;
+    const latMid = (minLat + maxLat) / 2;
+    // 1.6x so the province arrives with its neighbours around it, and a floor
+    // so DKI Jakarta does not pull the camera onto its own rooftops.
+    const spanLon = Math.min(Math.max(maxLon - minLon, 3.0) * 1.6, FOCUS_SPAN);
+    const spanLat = Math.min(Math.max(maxLat - minLat, 3.0) * 1.6, 24);
+    return distanceFor(spanLon, spanLat, latMid);
+  }
+
   function frameProvince(id) {
     const unit = provinces.byId.get(id);
-    if (!unit) return;
-    const [minX, minZ, maxX, maxZ] = unit.bbox;
-    const centre = new THREE.Vector3((minX + maxX) / 2, 0, (minZ + maxZ) / 2);
-    const spread = Math.max(maxX - minX, maxZ - minZ, 6);
-    const distance = THREE.MathUtils.clamp(spread * 1.75 + 14, 22, 130);
-    const target = centre.clone().setY(Math.max(2, unit.targetHeight * 0.5));
-    flyTo(target.clone().addScaledVector(FRAME_DIR, distance), target, 1.25);
+    if (unit) flyToDir(unit.dir, frameDistance(unit), 1.35);
   }
 
   // ── Hint ──────────────────────────────────────────────────────────
@@ -295,31 +352,24 @@ async function start() {
     hintHidden = true;
     hint.classList.add('is-gone');
   }
-  controls.addEventListener('start', hideHint);
-  setTimeout(hideHint, 12000);
+  setTimeout(hideHint, 14000);
 
-  // Keep the camera framing sane when the window changes shape. Until the
-  // visitor has taken control of the camera themselves, re-fit automatically.
+  // ── Idle spin ─────────────────────────────────────────────────────
+  // The globe drifts until the visitor touches it, which is what tells them it
+  // can be spun at all.
   let userMoved = false;
-  controls.addEventListener('start', () => { userMoved = true; });
+  controls.addEventListener('start', () => { userMoved = true; hideHint(); });
+
   addEventListener('resize', () => {
-    const view = computeOverview(camera);
+    const distance = overviewDistance();
     if (userMoved || flying) return;
-    camera.position.copy(view.position);
-    controls.target.copy(view.target);
+    camera.position.setLength(distance);
   });
 
   // ── Frame loop ────────────────────────────────────────────────────
   let frame = 0;
   onFrame((dt, elapsed, wallDt) => {
-    // Atmospheric depth is scaled to how far the camera is standing back, so
-    // the haze reads the same whether you are looking at Java or at all of it.
-    const camDistance = camera.position.distanceTo(controls.target);
-    const density = 0.0044 * Math.min(1, 118 / Math.max(70, camDistance));
-    scene.fog.density = density;
-    ocean.setFogDensity(density);
-
-    ocean.update(dt, elapsed, camera);
+    globe.update(dt, elapsed);
     sky.update(dt, elapsed);
     provinces.update(dt, elapsed);
     motes.update(dt, elapsed, renderer.domElement.height);
@@ -327,46 +377,46 @@ async function start() {
     labels.update(camera);
     hud.tickPlayback(wallDt);
 
-    // Picking every third frame is imperceptible and keeps the raycast cheap.
+    if (!userMoved && !flying) {
+      // A slow drift about the globe's own axis.
+      camera.position.applyAxisAngle(THREE.Object3D.DEFAULT_UP, -dt * 0.035);
+      camera.lookAt(controls.target);
+    }
+
     if (pointerInside && !flying && ++frame % 3 === 0) setHover(pick());
   });
 
-  world.start();
+  stage.start();
   progress(1);
 
   // ── Intro ─────────────────────────────────────────────────────────
-  // Open tight on the flag flying over Jakarta, then pull back to reveal the
-  // whole archipelago. Skipped for deep links, for ?intro=0, and whenever the
-  // visitor has asked for reduced motion.
   const hadDeepLink = readHash(false);
   const wantsIntro =
     !hadDeepLink &&
     new URLSearchParams(location.search).get('intro') !== '0' &&
-    !world.quality.reduceMotion;
+    !stage.quality.reduceMotion;
 
+  // Open on the whole planet, turned away from Indonesia, then arc around to it.
+  const openingDir = lonLatToDir(FOCUS_LON - 115, 16, new THREE.Vector3());
   if (wantsIntro) {
-    camera.position.copy(JAKARTA).add(new THREE.Vector3(10.5, 23.5, 14));
-    controls.target.copy(JAKARTA).add(new THREE.Vector3(3.5, 22.5, 0));
+    camera.position.copy(openingDir).multiplyScalar(GLOBE_RADIUS * 3.6);
     controls.enabled = false;
+  } else if (selectedId) {
+    snapToProvince(selectedId);
+  } else {
+    camera.position.copy(FOCUS_DIR).multiplyScalar(overviewDistance());
   }
+  camera.lookAt(controls.target);
 
   await new Promise((r) => setTimeout(r, 220));
   boot.classList.add('is-gone');
   hud.reveal();
-  refreshLabelSet();
-
-  // The rails have to be on screen before they can be measured.
-  const overview = computeOverview(camera);
-  if (!wantsIntro) {
-    camera.position.copy(overview.position);
-    controls.target.copy(overview.target);
-  }
+  refreshProvinceLabels();
 
   if (wantsIntro) {
-    setTimeout(() => {
-      const view = computeOverview(camera);
-      flyTo(view.position, view.target, 3.4, easeInOutCubic);
-    }, 520);
+    setTimeout(() => flyToDir(FOCUS_DIR, overviewDistance(), 3.6, easeInOutCubic), 620);
+  } else if (selectedId) {
+    snapToProvince(selectedId);
   }
 
   setTimeout(() => boot.remove(), 1400);

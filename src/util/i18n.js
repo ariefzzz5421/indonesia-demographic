@@ -22,7 +22,7 @@ export const STRINGS = {
     'fact.isl': 'pulau',
     'rank.foot': 'Klik untuk memusatkan kamera',
     'rank.title': 'Peringkat provinsi',
-    'hint': 'Seret untuk memutar · gulir untuk zoom · klik provinsi untuk detail',
+    'hint': 'Seret untuk memutar bola dunia · gulir untuk zoom · hanya provinsi Indonesia yang dapat diklik',
     'about.title': 'Sumber & metodologi',
 
     'metric.population': 'Penduduk',
@@ -80,7 +80,7 @@ export const STRINGS = {
     'fact.isl': 'islands',
     'rank.foot': 'Click to centre the camera',
     'rank.title': 'Province ranking',
-    'hint': 'Drag to orbit · scroll to zoom · click a province for detail',
+    'hint': 'Drag to spin the globe · scroll to zoom · only Indonesian provinces are clickable',
     'about.title': 'Sources & methodology',
 
     'metric.population': 'Population',

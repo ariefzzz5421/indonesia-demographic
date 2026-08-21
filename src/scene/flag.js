@@ -7,10 +7,13 @@
  * whole sheet. Normals come from finite differences of the same displacement
  * function, so the folds light correctly instead of looking like a flat decal.
  *
- * Proportions follow the official 2:3 ratio; the red is #CE1126.
+ * Proportions follow the official 2:3 ratio; the red is #CE1126. The whole
+ * assembly is planted at a lon/lat on the globe and rotated so its pole runs
+ * along the local vertical.
  */
 
 import * as THREE from 'three';
+import { CHIP_BASE, lonLatToDir } from '../util/geo.js';
 
 const CLOTH_COMMON = /* glsl */`
 uniform float uTime;
@@ -117,9 +120,13 @@ void main(){
 }
 `;
 
-export function createFlag({ position, poleHeight = 20, width = 7.5, sunDir, sunColor, skyColor }) {
+export function createFlag({ lon, lat, poleHeight = 20, width = 7.5, sunDir, sunColor, skyColor }) {
   const group = new THREE.Group();
-  group.position.copy(position);
+
+  const up = lonLatToDir(lon, lat, new THREE.Vector3());
+  group.position.copy(up).multiplyScalar(CHIP_BASE);
+  // The flag is modelled with its pole along +Y; stand it on the local vertical.
+  group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
 
   const height = width * (2 / 3);   // official 2:3
 
@@ -169,11 +176,6 @@ export function createFlag({ position, poleHeight = 20, width = 7.5, sunDir, sun
   cloth.position.set(0.12, poleHeight - height / 2 - 0.6, 0);
   cloth.frustumCulled = false;
   group.add(cloth);
-
-  // A soft warm pool of light so the flag reads against the night sky.
-  const lamp = new THREE.PointLight('#ffd9a8', 26, 26, 2);
-  lamp.position.set(1.5, poleHeight - height / 2, 2.2);
-  group.add(lamp);
 
   return {
     group,
