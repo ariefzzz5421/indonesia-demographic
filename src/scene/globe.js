@@ -102,8 +102,17 @@ void main(){
 }
 `;
 
+/** The land/sea mask only gates a specular term, so it can be far coarser than
+ *  the atlas. A quarter on each axis is a sixteenth of the fill cost. */
+const MASK_SCALE = 0.25;
+
 /**
  * Paint the world into two canvases: an RGB atlas and a land/sea mask.
+ *
+ * Each country's outline is turned into a Path2D exactly once, in atlas pixel
+ * space, and the mask reuses it under a uniform transform — building the paths
+ * twice was the single most expensive thing in the boot path.
+ *
  * @returns {{map: THREE.CanvasTexture, mask: THREE.CanvasTexture}}
  */
 function paintAtlas(world, size, highlightA3) {
@@ -113,12 +122,12 @@ function paintAtlas(world, size, highlightA3) {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { alpha: false });
 
   const maskCanvas = document.createElement('canvas');
-  maskCanvas.width = width / 2;
-  maskCanvas.height = height / 2;
-  const maskCtx = maskCanvas.getContext('2d');
+  maskCanvas.width = Math.round(width * MASK_SCALE);
+  maskCanvas.height = Math.round(height * MASK_SCALE);
+  const maskCtx = maskCanvas.getContext('2d', { alpha: false });
 
   // ── Sea ────────────────────────────────────────────────────────────
   const sea = ctx.createLinearGradient(0, 0, 0, height);
@@ -132,6 +141,7 @@ function paintAtlas(world, size, highlightA3) {
 
   maskCtx.fillStyle = '#000';
   maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+  maskCtx.save();
 
   // ── Graticule ─────────────────────────────────────────────────────
   ctx.lineWidth = Math.max(1, width / 2600);
@@ -156,21 +166,25 @@ function paintAtlas(world, size, highlightA3) {
   ctx.stroke();
 
   // ── Countries ─────────────────────────────────────────────────────
-  const pathFor = (country, scaleX, scaleY) => {
+  const pathFor = (country) => {
     const path = new Path2D();
     for (const ring of country.rings) {
-      path.moveTo(((ring[0] + 180) / 360) * scaleX, ((90 - ring[1]) / 180) * scaleY);
+      path.moveTo(((ring[0] + 180) / 360) * width, ((90 - ring[1]) / 180) * height);
       for (let i = 2; i < ring.length; i += 2) {
-        path.lineTo(((ring[i] + 180) / 360) * scaleX, ((90 - ring[i + 1]) / 180) * scaleY);
+        path.lineTo(((ring[i] + 180) / 360) * width, ((90 - ring[i + 1]) / 180) * height);
       }
       path.closePath();
     }
     return path;
   };
 
+  // Both canvases are 2:1, so one uniform scale maps atlas space onto the mask.
+  maskCtx.scale(MASK_SCALE, MASK_SCALE);
+  maskCtx.fillStyle = '#fff';
+
   const stroke = Math.max(1, width / 2200);
   for (const country of world.countries) {
-    const path = pathFor(country, width, height);
+    const path = pathFor(country);
     const focus = country.a3 === highlightA3;
 
     ctx.fillStyle = focus ? '#3f7a72' : '#36567a';
@@ -180,9 +194,10 @@ function paintAtlas(world, size, highlightA3) {
     ctx.strokeStyle = focus ? 'rgba(126,236,216,.7)' : 'rgba(163,205,242,.72)';
     ctx.stroke(path);
 
-    maskCtx.fillStyle = '#fff';
-    maskCtx.fill(pathFor(country, maskCanvas.width, maskCanvas.height), 'evenodd');
+    maskCtx.fill(path, 'evenodd');
   }
+
+  maskCtx.restore();
 
   const map = new THREE.CanvasTexture(canvas);
   map.colorSpace = THREE.SRGBColorSpace;

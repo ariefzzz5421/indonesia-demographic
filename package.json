@@ -10,8 +10,9 @@
     "data:geo": "python3 tools/build_geo.py data/indonesia-prov.geojson src/data/geo.json",
     "data:world": "python3 tools/build_world.py data/ne_50m_admin_0_countries.geojson src/data/world.json",
     "data:stats": "python3 tools/build_stats.py src/data/stats.js",
-    "data": "npm run data:fetch && npm run data:geo && npm run data:world && npm run data:stats && npm run data:history",
-    "data:history": "python3 tools/build_history.py src/data/history.js"
+    "data": "npm run data:fetch && npm run data:geo && npm run data:world && npm run data:stats && npm run data:history && npm run data:audit",
+    "data:history": "python3 tools/build_history.py src/data/history.js",
+    "data:audit": "python3 tools/audit_data.py"
   },
   "repository": {
     "type": "git",

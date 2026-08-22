@@ -3,12 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Indonesia 1945–2025 — Momen, Angka, dan Situasi Terkini</title>
+<title>Nusantara — Indonesia</title>
 <meta name="description" content="Perjalanan Indonesia dari Proklamasi 1945 hingga 2025: momen-momen penting, krisis 1998, grafik interaktif penduduk dan PDB, upah minimum tertinggi, komposisi penduduk, dan pertumbuhan investor pasar modal." />
 <meta name="color-scheme" content="dark" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='16' fill='%23ce1126'/%3E%3Crect y='16' width='32' height='16' fill='%23fff'/%3E%3C/svg%3E" />
 <link rel="stylesheet" href="./styles/main.css" />
 <link rel="stylesheet" href="./styles/page.css" />
+<link rel="modulepreload" href="./src/indonesia.js" />
+<link rel="modulepreload" href="./src/data/history.js" />
 </head>
 <body class="page">
 
@@ -18,7 +20,7 @@
   <a class="brand brand--static" href="./index.html">
     <span class="brand__flag" aria-hidden="true"><i></i><i></i></span>
     <span class="brand__text">
-      <span class="brand__title">Nusantara<span>3D</span></span>
+      <span class="brand__title">Nusantara</span>
       <span class="brand__sub" data-i18n="brand.sub">Demografi &amp; ekonomi Republik Indonesia</span>
     </span>
   </a>
@@ -115,11 +117,30 @@
     </p>
   </section>
 
+  <!-- Generations -->
+  <section class="sect" id="sect-gen">
+    <div class="sect__head">
+      <div>
+        <div class="sect__eyebrow" data-i18n="page.gen.eyebrow">Komposisi penduduk</div>
+        <h2 data-i18n="page.gen.heading">Enam generasi dalam satu negara</h2>
+      </div>
+      <div class="sect__tools"><span class="sect__stamp" id="genSub"></span></div>
+    </div>
+    <div class="card card--gen">
+      <div class="stack" id="genStack"></div>
+      <div class="genlist" id="genList"></div>
+      <p class="card__note card__note--left" data-i18n="page.gen.note">
+        Pangsa resmi Sensus Penduduk 2020 (BPS); jumlah jiwa dihitung dari pangsa × total sensus.
+        Rentang tahun lahir mengikuti pengelompokan BPS pada rilis SP2020.
+      </p>
+    </div>
+  </section>
+
   <!-- Sex composition -->
   <section class="sect" id="sect-sex">
     <div class="sect__head">
       <div>
-        <div class="sect__eyebrow" data-i18n="page.sex.eyebrow">Komposisi penduduk</div>
+        <div class="sect__eyebrow" data-i18n="page.sex.eyebrow">Rasio jenis kelamin</div>
         <h2 data-i18n="page.sex.title">Laki-laki dan perempuan</h2>
       </div>
     </div>

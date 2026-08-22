@@ -490,6 +490,86 @@ export const HISTORY = {
    "anchor": true
   }
  ],
+ "generations": {
+  "year": 2020,
+  "basis": "census",
+  "referenceYear": 2025,
+  "total": 270203917,
+  "groups": [
+   {
+    "id": "postz",
+    "name": "Post Gen Z",
+    "nameEn": "Post Gen Z",
+    "bornFrom": 2013,
+    "bornTo": null,
+    "share": 10.88,
+    "count": 29398186,
+    "color": "#8b7bff",
+    "ageFrom": 0,
+    "ageTo": 12
+   },
+   {
+    "id": "z",
+    "name": "Gen Z",
+    "nameEn": "Gen Z",
+    "bornFrom": 1997,
+    "bornTo": 2012,
+    "share": 27.94,
+    "count": 75494975,
+    "color": "#46e3d0",
+    "ageFrom": 13,
+    "ageTo": 28
+   },
+   {
+    "id": "milenial",
+    "name": "Milenial",
+    "nameEn": "Millennials",
+    "bornFrom": 1981,
+    "bornTo": 1996,
+    "share": 25.87,
+    "count": 69901753,
+    "color": "#5b9cf5",
+    "ageFrom": 29,
+    "ageTo": 44
+   },
+   {
+    "id": "x",
+    "name": "Gen X",
+    "nameEn": "Gen X",
+    "bornFrom": 1965,
+    "bornTo": 1980,
+    "share": 21.88,
+    "count": 59120617,
+    "color": "#f5c451",
+    "ageFrom": 45,
+    "ageTo": 60
+   },
+   {
+    "id": "boomer",
+    "name": "Baby Boomer",
+    "nameEn": "Baby Boomers",
+    "bornFrom": 1946,
+    "bornTo": 1964,
+    "share": 11.56,
+    "count": 31235573,
+    "color": "#ff9f6b",
+    "ageFrom": 61,
+    "ageTo": 79
+   },
+   {
+    "id": "preboom",
+    "name": "Pre-Boomer",
+    "nameEn": "Pre-Boomers",
+    "bornFrom": null,
+    "bornTo": 1945,
+    "share": 1.87,
+    "count": 5052813,
+    "color": "#ff6f9c",
+    "ageFrom": 80,
+    "ageTo": null
+   }
+  ]
+ },
  "gdpUsd": [
   {
    "year": 1960,

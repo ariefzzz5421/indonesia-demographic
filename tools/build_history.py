@@ -31,6 +31,8 @@ Usage
 import json
 import sys
 
+GEN_REF_YEAR = 2025   # ages are quoted as of this year
+
 # ── Population: BPS censuses and official projections ───────────────────────
 POPULATION_ANCHORS = [
     (1945,  70_000_000, "estimate"),   # proclamation-era estimate
@@ -74,6 +76,21 @@ GROWTH = {
 SEX_RATIO = [
     (1971, 97.2), (1980, 98.8), (1990, 99.4),
     (2000, 101.0), (2010, 101.4), (2020, 102.0),
+]
+
+# ── Generations, BPS Sensus Penduduk 2020 ──────────────────────────────────
+# BPS published the shares to two decimals and they sum to exactly 100.00, so
+# the shares are treated as the source of truth and head counts are derived
+# from share x census total. The largest group absorbs the rounding remainder
+# so the counts add up to the census figure exactly.
+# Birth-year bands are the ones BPS used in the SP2020 release.
+GENERATIONS = [
+    ("postz",   "Post Gen Z",   "Post Gen Z",       2013, None, 10.88, "#8b7bff"),
+    ("z",       "Gen Z",        "Gen Z",            1997, 2012, 27.94, "#46e3d0"),
+    ("milenial","Milenial",     "Millennials",      1981, 1996, 25.87, "#5b9cf5"),
+    ("x",       "Gen X",        "Gen X",            1965, 1980, 21.88, "#f5c451"),
+    ("boomer",  "Baby Boomer",  "Baby Boomers",     1946, 1964, 11.56, "#ff9f6b"),
+    ("preboom", "Pre-Boomer",   "Pre-Boomers",      None, 1945,  1.87, "#ff6f9c"),
 ]
 
 SEX_SPLIT_2020 = {"male": 136_661_899, "female": 133_542_018, "year": 2020, "basis": "census"}
@@ -324,8 +341,33 @@ def build(dst):
                     femaleShare=round(record["female"] / total * 100, 2),
                     ratio=round(record["male"] / record["female"] * 100, 2))
 
+    census_total = next(p["value"] for p in population if p["year"] == 2020)
+    generations = []
+    for gid, name, name_en, born_from, born_to, share, color in GENERATIONS:
+        generations.append({
+            "id": gid, "name": name, "nameEn": name_en,
+            "bornFrom": born_from, "bornTo": born_to,
+            "share": share,
+            "count": round(census_total * share / 100),
+            "color": color,
+            # Age span in the reference year, for readers who think in ages.
+            "ageFrom": (GEN_REF_YEAR - born_to) if born_to else 0,
+            "ageTo": (GEN_REF_YEAR - born_from) if born_from else None,
+        })
+    # Push the rounding remainder into the largest cohort.
+    drift = census_total - sum(g["count"] for g in generations)
+    biggest = max(generations, key=lambda g: g["count"])
+    biggest["count"] += drift
+
     doc = {
         "population": population,
+        "generations": {
+            "year": 2020,
+            "basis": "census",
+            "referenceYear": GEN_REF_YEAR,
+            "total": census_total,
+            "groups": generations,
+        },
         "gdpUsd": gdp,
         "growth": growth,
         "eras": ERAS,
@@ -353,6 +395,9 @@ def build(dst):
     print(f"  gdp {gdp[0]['year']}–{gdp[-1]['year']} ({len(gdp)} points)")
     print(f"  investors {sid[0]['year']}–{sid[-1]['year']}, "
           f"penetration {sid[-2]['penetration']}% in {sid[-2]['year']}")
+    print(f"  generations {len(generations)} groups, shares sum "
+          f"{sum(g['share'] for g in generations):.2f}%, counts sum "
+          f"{sum(g['count'] for g in generations):,} (census {census_total:,})")
     print(f"  milestones {len(MILESTONES)}  wages {len(WAGES)}")
     print(f"  wrote {dst}")
 
