@@ -4,9 +4,10 @@
  * can read off the screen instead of guessing at a cache.
  */
 import './wage-logos.js';
+import './wage-compare.js';
 
 export const BUILD = {
-  version: '3.0.1',
+  version: '3.1.0',
   date: '2026-08-22',
-  name: 'globe + sejarah + lambang UMK',
+  name: 'globe + sejarah + UMK compare & export',
 };
