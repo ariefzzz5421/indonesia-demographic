@@ -10,6 +10,12 @@
 import { HISTORY } from './data/history.js';
 import { DATA } from './data/stats.js';
 import { BUILD } from './version.js';
+// Side-effect modules that decorate the wage ranking once barList has rendered
+// it. Imported here rather than from version.js, which the globe also loads:
+// that page has no wage list, so it was downloading both of these and their ten
+// emblems only to discard them.
+import './wage-logos.js';
+import './wage-compare.js';
 import { timeChart, barList, splitDonut, stackBar } from './ui/charts.js';
 import { compact, compactTight, idr, num, pct, usd } from './util/format.js';
 import { lang, onLang, setLang, t } from './util/i18n.js';

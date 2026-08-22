@@ -22,6 +22,11 @@ if (wageList && wageDetail) {
     'Kabupaten Tangerang': asset('kabupaten-tangerang.png'),
   };
 
+  // Emblems that turn out not to be decodable. Recorded so the decorators skip
+  // them for good: the observers below re-run on every mutation, and simply
+  // removing a failed node is itself a mutation — that loops forever.
+  const broken = new Set();
+
   const style = document.createElement('style');
   style.textContent = `
     #wageList .barrow--with-logo{
@@ -103,14 +108,28 @@ if (wageList && wageDetail) {
 
   function makeLogo(name, className) {
     const src = LOGOS[name];
-    if (!src) return null;
+    if (!src || broken.has(name)) return null;
     const node = document.createElement('span');
     node.className = className;
     const img = document.createElement('img');
-    img.src = src;
     img.alt = `Lambang ${name}`;
-    img.loading = 'lazy';
+    // Not lazy: these are ten ~1 KB emblems in one list, so deferring them buys
+    // nothing and leaves the slot empty until the loader gets round to it.
     img.decoding = 'async';
+
+    // An emblem that cannot be decoded would otherwise leave an empty framed
+    // box in the row. Drop the whole slot so the row falls back to its plain
+    // layout. Both paths are covered: `error` catches a failed request, and
+    // decode() rejects on a file that downloads fine but is not valid image
+    // data. The listener goes on before `src` so an immediate failure is seen.
+    const drop = () => {
+      broken.add(name);
+      node.closest('.barrow')?.classList.remove('barrow--with-logo');
+      node.remove();
+    };
+    img.addEventListener('error', drop);
+    img.src = src;
+    img.decode?.().catch(drop);
     node.append(img);
     return node;
   }
@@ -118,7 +137,8 @@ if (wageList && wageDetail) {
   function decorateRows() {
     for (const row of wageList.querySelectorAll('.barrow')) {
       const name = row.querySelector('.barrow__name')?.textContent?.trim();
-      if (!name || !LOGOS[name] || row.querySelector('.barrow__region-logo')) continue;
+      if (!name || !LOGOS[name] || broken.has(name)) continue;
+      if (row.querySelector('.barrow__region-logo')) continue;
       const body = row.querySelector('.barrow__body');
       const logo = makeLogo(name, 'barrow__region-logo');
       if (!body || !logo) continue;
@@ -131,7 +151,7 @@ if (wageList && wageDetail) {
     const activeName =
       wageList.querySelector('.barrow.is-on .barrow__name')?.textContent?.trim() ||
       wageList.querySelector('.barrow .barrow__name')?.textContent?.trim();
-    if (!activeName || !LOGOS[activeName]) return;
+    if (!activeName || !LOGOS[activeName] || broken.has(activeName)) return;
 
     let head = wageDetail.querySelector('.wage-detail__head');
     if (head?.dataset.name === activeName) return;
