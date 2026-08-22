@@ -1,6 +1,8 @@
-# Runtime needs index.html, styles/, src/ and vendor/ — nothing else.
+# Anchored to the repo root. Without the leading slash these patterns match at
+# any depth, and a bare `data` would also strip src/data — the generated
+# geometry and statistics the pages cannot render without.
 node_modules
 package-lock.json
-data
-tools
-README.md
+/data
+/tools
+/README.md
