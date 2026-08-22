@@ -9,16 +9,19 @@
  *
  * Column heights and colours live in small uniform arrays indexed per-particle,
  * so the whole field animates with 34 uniform writes per frame instead of a
- * buffer upload.
+ * buffer upload. Each mote stores its unit direction from the globe's centre
+ * and rides outward along it as its province grows.
  */
 
 import * as THREE from 'three';
+import { CHIP_BASE, lonLatToDir } from '../util/geo.js';
 
 const PEOPLE_PER_MOTE = 45000;
 const MAX_PER_PROVINCE = 1400;
 const MAX_UNITS = 40;
 
 const VERT = /* glsl */`
+attribute vec3  aDir;      // unit direction from the globe's centre
 attribute float aProv;
 attribute float aLevel;    // 0..1 position through the column
 attribute float aPhase;
@@ -28,6 +31,7 @@ uniform float uTime;
 uniform float uHeights[${MAX_UNITS}];
 uniform vec3  uColors[${MAX_UNITS}];
 uniform float uViewHeight;   // drawing-buffer height, in device pixels
+uniform float uBase;
 
 varying vec3 vTint;
 varying float vAlpha;
@@ -37,8 +41,8 @@ void main(){
   float top = uHeights[idx];
   vTint = uColors[idx];
 
-  vec3 pos = position;
-  pos.y = top * (0.06 + aLevel * 0.97) + sin(uTime * 0.55 + aPhase) * 0.16;
+  float lift = top * (0.06 + aLevel * 0.97) + sin(uTime * 0.55 + aPhase) * 0.16;
+  vec3 pos = aDir * (uBase + lift);
 
   vec4 mv = modelViewMatrix * vec4(pos, 1.0);
   float dist = -mv.z;
@@ -129,10 +133,12 @@ function samplePoints(record, count) {
 }
 
 export function createMotes(geo, units, provinceData) {
+  const scratchDir = new THREE.Vector3();
   const indexOf = new Map(units.map((u, i) => [u.id, i]));
   const geoById = new Map(geo.provinces.map((p) => [p.id, p]));
 
   const positions = [];
+  const dirs = [];
   const provIdx = [];
   const levels = [];
   const phases = [];
@@ -150,8 +156,10 @@ export function createMotes(geo, units, provinceData) {
     const pts = samplePoints(record, count);
     const idx = indexOf.get(unit.id);
 
-    for (const [x, z] of pts) {
-      positions.push(x, 0, z);
+    for (const [lon, lat] of pts) {
+      lonLatToDir(lon, lat, scratchDir);
+      positions.push(scratchDir.x * CHIP_BASE, scratchDir.y * CHIP_BASE, scratchDir.z * CHIP_BASE);
+      dirs.push(scratchDir.x, scratchDir.y, scratchDir.z);
       provIdx.push(idx);
       // Bias motes toward the lower half so columns read as filled, not hollow.
       levels.push(Math.pow(Math.random(), 1.35));
@@ -162,6 +170,7 @@ export function createMotes(geo, units, provinceData) {
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('aDir', new THREE.Float32BufferAttribute(dirs, 3));
   geometry.setAttribute('aProv', new THREE.Float32BufferAttribute(provIdx, 1));
   geometry.setAttribute('aLevel', new THREE.Float32BufferAttribute(levels, 1));
   geometry.setAttribute('aPhase', new THREE.Float32BufferAttribute(phases, 1));
@@ -178,6 +187,7 @@ export function createMotes(geo, units, provinceData) {
       uHeights: { value: heights },
       uColors: { value: colors },
       uViewHeight: { value: innerHeight * Math.min(devicePixelRatio, 2) },
+      uBase: { value: CHIP_BASE },
     },
     transparent: true,
     depthWrite: false,

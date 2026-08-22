@@ -11,7 +11,9 @@ import {
 import { rampCss, rampGradient } from '../util/color.js';
 import { animateCounter, compact, compactTight, idr, num, pct, usd } from '../util/format.js';
 import { lang, onLang, setLang, t } from '../util/i18n.js';
-import { createSparkline } from './chart.js';
+import { HISTORY } from '../data/history.js';
+import { BUILD } from '../version.js';
+import { timeChart } from './charts.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -69,7 +71,33 @@ export function createHud({ data, onMetric, onYear, onHover, onSelect, onReset }
   const detail = $('#detail');
   const rankList = $('#rankList');
   const legendBar = $('#legendBar');
-  const sparkHighlight = createSparkline($('#sparkSvg'), series);
+  // The rail chart covers the whole national story, 1945 to now — far wider
+  // than the map's own 2015-2025 scrubber. Clicking a year inside the
+  // scrubber's range moves the map with it; clicking outside just reads out.
+  const railChart = timeChart($('#railChart'), {
+    compact: true,
+    series: [
+      {
+        id: 'pop', label: t('spark.pop'), color: '#46e3d0', axis: 'left', kind: 'line', dash: true,
+        points: HISTORY.population.map((d) => ({ year: d.year, value: d.value, anchor: d.anchor, basis: d.basis })),
+      },
+      {
+        id: 'gdp', label: 'PDB', color: '#f5c451', axis: 'right', kind: 'area',
+        points: HISTORY.gdpUsd.map((d) => ({ year: d.year, value: d.value, estimated: d.estimated })),
+      },
+    ],
+    markers: HISTORY.milestones.map((m) => ({
+      year: m.year,
+      label: lang() === 'id' ? m.title : m.titleEn,
+      color: HISTORY.eras.find((e) => e.id === m.era)?.color ?? '#8b7bff',
+    })),
+    format: (value, id) => (id === 'gdp' ? usd(value, lang(), 2) : compact(value, lang(), 2)),
+    formatAxis: (value, axis) => (axis === 'right' ? `US$${compactTight(value, lang(), 0)}` : compactTight(value, lang(), 0)),
+    onPick: (year) => {
+      if (year >= series[0].year && year <= maxSlice.year) setYear(year);
+    },
+  });
+  const sparkHighlight = (year) => railChart.focus(year);
 
   $('#yearTicks').replaceChildren(
     ...[series[0].year, 2018, 2020, 2022, maxSlice.year].map((y) => {
@@ -330,7 +358,12 @@ export function createHud({ data, onMetric, onYear, onHover, onSelect, onReset }
       <p>The 34 map units sum to slightly less than the BPS national total for 2024 because of rounding in the provincial estimates.</p>`,
   };
 
-  const openAbout = () => { $('#aboutBody').innerHTML = ABOUT[lang()]; about.hidden = false; };
+  // The build stamp is here so "am I looking at the latest version?" has an
+  // answer on screen rather than a guess about the cache.
+  const aboutHtml = () => `${ABOUT[lang()]}
+    <h4>${t('page.build')}</h4>
+    <p><code>${BUILD.version}</code> · ${BUILD.date} · ${BUILD.name}</p>`;
+  const openAbout = () => { $('#aboutBody').innerHTML = aboutHtml(); about.hidden = false; };
   const closeAbout = () => { about.hidden = true; };
   $('#btnAbout').addEventListener('click', openAbout);
   $('#aboutClose').addEventListener('click', closeAbout);
@@ -355,7 +388,7 @@ export function createHud({ data, onMetric, onYear, onHover, onSelect, onReset }
     renderYear();
     renderKpis(false);
     renderDetail(selectedId);
-    if (!about.hidden) $('#aboutBody').innerHTML = ABOUT[lang()];
+    if (!about.hidden) $('#aboutBody').innerHTML = aboutHtml();
   });
 
   narrow.addEventListener('change', renderTabs);

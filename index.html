@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Nusantara 3D — Peta Demografi & Ekonomi Indonesia</title>
-<meta name="description" content="Visualisasi 3D interaktif demografi dan ekonomi Indonesia: 34 unit provinsi, jumlah penduduk, PDB, dan PDB per kapita berdasarkan data BPS, IMF, dan Bank Dunia." />
+<title>Nusantara 3D — Atlas Globe Demografi &amp; Ekonomi Indonesia</title>
+<meta name="description" content="Bola dunia atlas 3D interaktif: putar Bumi, telusuri demografi dan ekonomi Indonesia — 34 unit provinsi, jumlah penduduk, PDB, dan PDB per kapita berdasarkan data BPS, IMF, dan Bank Dunia." />
 <meta name="color-scheme" content="dark" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='16' fill='%23ce1126'/%3E%3Crect y='16' width='32' height='16' fill='%23fff'/%3E%3C/svg%3E" />
 <link rel="stylesheet" href="./styles/main.css" />
@@ -19,7 +19,7 @@
 </head>
 <body>
 
-<canvas id="stage" aria-label="Peta 3D Indonesia"></canvas>
+<canvas id="stage" aria-label="Bola dunia 3D dengan peta Indonesia"></canvas>
 
 <!-- ── Loading ─────────────────────────────────────────────────────── -->
 <div id="boot" class="boot">
@@ -44,6 +44,10 @@
   </header>
 
   <div class="topright">
+    <nav class="nav">
+      <a class="nav__link is-on" href="./index.html" aria-current="page">Globe</a>
+      <a class="nav__link" href="./indonesia.html">Indonesia</a>
+    </nav>
     <div class="seg" role="group" aria-label="Language">
       <button class="seg__btn is-on" data-lang-set="id">ID</button>
       <button class="seg__btn" data-lang-set="en">EN</button>
@@ -93,12 +97,13 @@
     <div class="spark">
       <div class="spark__head">
         <span data-i18n="spark.title">PDB nominal &amp; penduduk</span>
-        <span class="spark__yr">2015–2025</span>
+        <span class="spark__yr">1945–2025</span>
       </div>
-      <svg id="sparkSvg" viewBox="0 0 260 76" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="chart chart--compact" id="railChart"></div>
       <div class="spark__legend">
         <span><i class="sw sw--gdp"></i>PDB</span>
         <span><i class="sw sw--pop"></i><span data-i18n="spark.pop">Penduduk</span></span>
+        <a class="spark__more" href="./indonesia.html" data-i18n="spark.more">Lihat lengkap →</a>
       </div>
     </div>
 
@@ -161,7 +166,7 @@
     <div class="tip__sub" id="tipSub"></div>
   </div>
 
-  <div class="hint" id="hint" data-i18n="hint">Seret untuk memutar · gulir untuk zoom · klik provinsi untuk detail</div>
+  <div class="hint" id="hint" data-i18n="hint">Seret untuk memutar bola dunia · gulir untuk zoom · hanya provinsi Indonesia yang dapat diklik</div>
 </div>
 
 <!-- Sources modal -->

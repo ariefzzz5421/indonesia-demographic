@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build the projected, simplified province geometry consumed by the 3D map.
+Build the simplified province geometry consumed by the 3D globe.
 
 Source
 ------
@@ -11,6 +11,9 @@ from the BAKOSURTANAL / BIG 1:250.000 base map.
     curl -o prov.geojson \
       https://raw.githubusercontent.com/ans-4175/peta-indonesia-geojson/master/indonesia-prov.geojson
 
+Coordinates stay in lon/lat degrees. The globe converts them to positions on
+the sphere at draw time, so nothing here bakes in a projection.
+
 Usage
 -----
     python3 tools/build_geo.py prov.geojson src/data/geo.json
@@ -20,11 +23,7 @@ import json
 import math
 import sys
 
-# lon/lat -> local plane. Indonesia straddles the equator, so a plain
-# equirectangular projection already has a near-correct aspect ratio.
-LON0, LAT0 = 118.1035, -2.5210
-SCALE = 2.1825          # ~100 world units across the archipelago
-MIN_RING_AREA = 4.5e-4  # deg^2, drops sub-pixel islets (~5 km across)
+MIN_RING_AREA = 4.5e-4  # deg^2, drops islets roughly 5 km across and smaller
 CHAIKIN_MIN_PTS = 10    # smooth only rings with enough structure to keep
 
 NAMES = {
@@ -102,33 +101,29 @@ def dedupe(ring):
     return out
 
 
-def project(ring):
-    return [((lon - LON0) * SCALE, -(lat - LAT0) * SCALE) for lon, lat in ring]
-
-
 def flat(ring):
     out = []
-    for x, z in ring:
-        out.append(round(x, 3))
-        out.append(round(z, 3))
+    for lon, lat in ring:
+        out.append(round(lon, 4))
+        out.append(round(lat, 4))
     return out
 
 
 def centroid_of(ring):
-    """Area-weighted centroid of a projected ring."""
-    cx = cz = a = 0.0
+    """Area-weighted centroid in lon/lat."""
+    cx = cy = a = 0.0
     n = len(ring)
     for i in range(n):
-        x1, z1 = ring[i]
-        x2, z2 = ring[(i + 1) % n]
-        cross = x1 * z2 - x2 * z1
+        x1, y1 = ring[i]
+        x2, y2 = ring[(i + 1) % n]
+        cross = x1 * y2 - x2 * y1
         a += cross
         cx += (x1 + x2) * cross
-        cz += (z1 + z2) * cross
+        cy += (y1 + y2) * cross
     a *= 0.5
     if abs(a) < 1e-12:
         return ring[0]
-    return (cx / (6 * a), cz / (6 * a))
+    return (cx / (6 * a), cy / (6 * a))
 
 
 def build(src, dst):
@@ -160,7 +155,6 @@ def build(src, dst):
                 outer = chaikin(outer)
             if ring_area(outer) < 0:            # normalise outer to CCW
                 outer.reverse()
-            outer = project(outer)
 
             holes = []
             for hole_ring in rings[1:]:
@@ -171,11 +165,11 @@ def build(src, dst):
                     hole = chaikin(hole)
                 if ring_area(hole) > 0:         # normalise holes to CW
                     hole.reverse()
-                holes.append(flat(project(hole)))
+                holes.append(flat(hole))
 
-            for x, z in outer:
-                bbox[0] = min(bbox[0], x); bbox[1] = min(bbox[1], z)
-                bbox[2] = max(bbox[2], x); bbox[3] = max(bbox[3], z)
+            for lon, lat in outer:
+                bbox[0] = min(bbox[0], lon); bbox[1] = min(bbox[1], lat)
+                bbox[2] = max(bbox[2], lon); bbox[3] = max(bbox[3], lat)
 
             if area > biggest[0]:
                 biggest = (area, outer)
@@ -185,7 +179,7 @@ def build(src, dst):
                 poly["h"] = holes
             out_polys.append(poly)
 
-        cx, cz = centroid_of(biggest[1])
+        cx, cy = centroid_of(biggest[1])
         world[0] = min(world[0], bbox[0]); world[1] = min(world[1], bbox[1])
         world[2] = max(world[2], bbox[2]); world[3] = max(world[3], bbox[3])
 
@@ -193,15 +187,14 @@ def build(src, dst):
             "id": pid,
             "name": name,
             "island": island,
-            "centroid": [round(cx, 3), round(cz, 3)],
-            "bbox": [round(v, 3) for v in bbox],
+            "centroid": [round(cx, 4), round(cy, 4)],
+            "bbox": [round(v, 4) for v in bbox],
             "polys": out_polys,
         })
 
     provinces.sort(key=lambda p: p["id"])
     doc = {
-        "projection": {"lon0": LON0, "lat0": LAT0, "scale": SCALE},
-        "bbox": [round(v, 3) for v in world],
+        "bbox": [round(v, 4) for v in world],
         "provinces": provinces,
     }
     with open(dst, "w") as fh:

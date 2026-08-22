@@ -10,9 +10,12 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { stepTweens } from '../util/tween.js';
+import { GLOBE_RADIUS } from '../util/geo.js';
 
-export const HORIZON = new THREE.Color('#0a1626');
-export const DEEP    = new THREE.Color('#03070f');
+export const DEEP = new THREE.Color('#02040a');
+/** Shared key-light direction. Nothing in the scene uses THREE lights — every
+ *  material shades itself — so this is passed to each shader instead. */
+export const SUN_DIR = new THREE.Vector3(-0.55, 0.42, 0.72).normalize();
 
 export function createWorld(canvas) {
   const renderer = new THREE.WebGLRenderer({
@@ -28,48 +31,23 @@ export function createWorld(canvas) {
 
   const scene = new THREE.Scene();
   scene.background = DEEP.clone();
-  scene.fog = new THREE.FogExp2(HORIZON.clone(), 0.0042);
 
-  const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.5, 3000);
-  camera.position.set(0, 96, 118);
+  const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 1, 6000);
+  camera.position.set(0, 60, 320);
 
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.dampingFactor = 0.055;
   controls.rotateSpeed = 0.62;
   controls.zoomSpeed = 0.85;
-  controls.panSpeed = 0.6;
-  controls.screenSpacePanning = false;
-  controls.minDistance = 9;
-  controls.maxDistance = 260;
-  controls.minPolarAngle = THREE.MathUtils.degToRad(6);
-  controls.maxPolarAngle = THREE.MathUtils.degToRad(82);
+  // The globe always stays centred: panning is disabled so the camera can only
+  // spin around it and dolly in or out.
+  controls.enablePan = false;
+  controls.minDistance = GLOBE_RADIUS * 1.28;
+  controls.maxDistance = GLOBE_RADIUS * 4.2;
+  controls.minPolarAngle = THREE.MathUtils.degToRad(4);
+  controls.maxPolarAngle = THREE.MathUtils.degToRad(176);
   controls.target.set(0, 0, 0);
-
-  // Keep the camera from drifting off the archipelago while panning.
-  const PAN_LIMIT = new THREE.Vector3(78, 26, 52);
-  controls.addEventListener('change', () => {
-    const tgt = controls.target;
-    tgt.x = THREE.MathUtils.clamp(tgt.x, -PAN_LIMIT.x, PAN_LIMIT.x);
-    tgt.y = THREE.MathUtils.clamp(tgt.y, -2, PAN_LIMIT.y);
-    tgt.z = THREE.MathUtils.clamp(tgt.z, -PAN_LIMIT.z, PAN_LIMIT.z);
-  });
-
-  // ── Lighting ──────────────────────────────────────────────────────
-  // Low warm key from the west (evening light over the Indian Ocean),
-  // cool bounce from the sky, and a tight rim to separate columns from the sea.
-  const key = new THREE.DirectionalLight('#ffd7a8', 2.15);
-  key.position.set(-58, 62, 44);
-  scene.add(key);
-
-  const rim = new THREE.DirectionalLight('#5fd8ff', 0.85);
-  rim.position.set(52, 28, -66);
-  scene.add(rim);
-
-  const hemi = new THREE.HemisphereLight('#2f5c94', '#050c16', 0.85);
-  scene.add(hemi);
-
-  scene.add(new THREE.AmbientLight('#9fc4ff', 0.18));
 
   // ── Post ──────────────────────────────────────────────────────────
   const composer = new EffectComposer(renderer);
@@ -185,6 +163,5 @@ export function createWorld(canvas) {
   return {
     renderer, scene, camera, controls, composer, bloom,
     onFrame, onQuality, quality, resize, start: loop,
-    lights: { key, rim, hemi },
   };
 }

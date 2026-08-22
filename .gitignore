@@ -1,3 +1,7 @@
 node_modules/
 .DS_Store
 *.log
+
+# Natural Earth source (3 MB). Canonical and stable upstream, so it is fetched
+# on demand rather than vendored — see `npm run data:fetch`.
+data/ne_50m_admin_0_countries.geojson

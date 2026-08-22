@@ -104,13 +104,23 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 
 /* ── Rails ─────────────────────────────────────────────────────────── */
 .rail{
-  position:absolute;top:78px;width:var(--rail-w);max-height:calc(100vh - 220px);
+  position:absolute;top:78px;width:var(--rail-w);max-height:calc(100vh - 232px);
   display:flex;flex-direction:column;gap:10px;padding:16px;
   background:var(--panel);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
   border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow);
   overflow:hidden;
 }
-.rail--left{left:24px;animation:fadeRight .9s .22s var(--ease) both}
+/* The left rail is taller than a short window; it scrolls rather than clipping
+   its last card in half. */
+.rail--left{
+  left:24px;animation:fadeRight .9s .22s var(--ease) both;
+  overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:var(--line-2) transparent;
+  padding-right:12px;
+}
+.rail--left::-webkit-scrollbar{width:5px}
+.rail--left::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:3px}
+.rail--left>*{flex:none}
 .rail--right{right:24px;animation:fadeLeft .9s .3s var(--ease) both}
 .rail__head{display:flex;align-items:center;gap:8px;padding-bottom:2px}
 .rail__head h2{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-3)}
@@ -344,7 +354,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   .brand{top:12px;left:12px}
   .topright{top:12px;right:12px}
   .iconbtn{width:29px;height:29px}
-  .labels{display:none}
   .scrub__ticks span:nth-child(2),
   .scrub__ticks span:nth-child(4){display:none}
 }
@@ -371,3 +380,102 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .label__dot{width:6px;height:6px;border-radius:50%;flex:none;box-shadow:0 0 8px currentColor}
 .label__txt{font-variant-numeric:tabular-nums}
 @media (max-width:900px){.label{font-size:9.5px;padding:3px 7px 3px 6px}}
+
+/* Country names lying on the globe — quieter than the province pills, and
+   never allowed to compete with them for attention. */
+.label--country{
+  padding:2px 7px;border-radius:5px;
+  background:rgba(5,11,20,.42);border-color:rgba(150,190,240,.10);
+  box-shadow:none;
+  font-size:9.5px;font-weight:500;letter-spacing:.13em;text-transform:uppercase;
+  color:#a9c3e0;
+}
+.label--country::after{display:none}
+@media (max-width:900px){.label--country{font-size:8.5px;letter-spacing:.1em;padding:2px 5px}}
+
+/* ── Page navigation ───────────────────────────────────────────────── */
+.nav{
+  display:flex;gap:2px;padding:3px;border-radius:999px;
+  background:var(--panel);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
+  border:1px solid var(--line);
+}
+.nav__link{
+  padding:5px 13px;border-radius:999px;font-size:11.5px;font-weight:600;
+  letter-spacing:.03em;color:var(--fg-3);text-decoration:none;transition:.25s var(--ease);
+}
+.nav__link:hover{color:var(--fg-2)}
+.nav__link.is-on{background:rgba(255,255,255,.09);color:var(--fg)}
+
+/* ── Charts ────────────────────────────────────────────────────────── */
+.chart{position:relative;width:100%}
+.chart--compact{height:88px}
+.chart__svg{display:block;width:100%;height:100%;cursor:crosshair;touch-action:pan-y}
+.chart__svg:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:6px}
+.chart__axis{font:500 9px var(--mono);fill:var(--fg-3);letter-spacing:.02em}
+.chart__axis--right{text-anchor:start}
+.chart__band{font:600 8.5px var(--font);letter-spacing:.1em;text-transform:uppercase}
+.chart__cursor line{pointer-events:none}
+
+.chart__tip{
+  position:absolute;top:2px;transform:translateX(-50%);pointer-events:none;z-index:5;
+  padding:7px 10px;min-width:118px;
+  background:rgba(6,11,20,.94);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  border:1px solid var(--line-2);border-radius:9px;box-shadow:var(--shadow);
+}
+.chart__tip[hidden]{display:none}
+.chart__tipYear{
+  display:flex;align-items:center;gap:6px;
+  font:650 12px/1 var(--font);margin-bottom:5px;font-variant-numeric:tabular-nums;
+}
+.chart__tipYear i{width:5px;height:5px;border-radius:50%;flex:none}
+.chart__tipRow{display:flex;align-items:baseline;gap:6px;font-size:10.5px;color:var(--fg-2);white-space:nowrap}
+.chart__tipRow i{width:7px;height:2.5px;border-radius:2px;flex:none;position:relative;top:-2px}
+.chart__tipRow b{margin-left:auto;font:600 11px var(--mono);color:var(--fg);font-variant-numeric:tabular-nums}
+.chart__tipRow em{font-style:normal;color:var(--fg-3);font-size:9px}
+.chart__tipNote{
+  margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.09);
+  font-size:10px;line-height:1.4;color:var(--fg-2);max-width:190px;white-space:normal;
+}
+.spark__more{margin-left:auto;color:var(--cyan);text-decoration:none;font-weight:600}
+.spark__more:hover{text-decoration:underline}
+
+/* ── Ranked bars ───────────────────────────────────────────────────── */
+.barrow{
+  display:grid;grid-template-columns:20px 1fr;gap:10px;align-items:start;
+  width:100%;text-align:left;padding:9px 10px;border-radius:10px;
+  transition:background .2s var(--ease),transform .2s var(--ease);
+}
+.barrow:hover{background:rgba(255,255,255,.05);transform:translateX(2px)}
+.barrow.is-on{background:rgba(70,227,208,.1);box-shadow:inset 0 0 0 1px rgba(70,227,208,.25)}
+.barrow__n{font:600 10px/1.6 var(--mono);color:var(--fg-3);text-align:right}
+.barrow__body{min-width:0}
+.barrow__top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.barrow__name{font-size:12.5px;font-weight:500}
+.barrow__val{font:600 12px var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.barrow__track{display:block;height:4px;border-radius:3px;margin-top:6px;background:rgba(255,255,255,.07);overflow:hidden}
+.barrow__track i{display:block;height:100%;border-radius:3px;transition:width .9s var(--ease)}
+.barrow__sub{display:block;margin-top:5px;font-size:10px;color:var(--fg-3)}
+
+/* ── Donut ─────────────────────────────────────────────────────────── */
+.donut{display:block;width:100%;height:auto;max-width:200px;margin:0 auto}
+.donut__value{font:650 24px var(--font);fill:var(--fg);font-variant-numeric:tabular-nums}
+.donut__label{font:500 10px var(--font);fill:var(--fg-3);letter-spacing:.1em;text-transform:uppercase}
+
+/* Short desktop windows: tighten the left rail so its cards fit rather than
+   relying on the scrollbar, and drop the chart entirely when it truly cannot. */
+@media (min-width:901px) and (max-height:820px){
+  .rail{max-height:calc(100vh - 216px)}
+  .rail--left{gap:8px;padding:13px}
+  .kpi--hero{padding:11px 12px}
+  .kpi--hero .kpi__value{font-size:25px}
+  .kpi{padding:9px 10px}
+  .kpi__note{font-size:10px}
+  .chart--compact{height:70px}
+  .spark{padding:9px 11px 7px}
+  .factstrip div{padding:6px 4px}
+  .factstrip b{font-size:13.5px}
+}
+@media (min-width:901px) and (max-height:660px){
+  .spark{display:none}
+  .rail{max-height:calc(100vh - 200px)}
+}
