@@ -1,4 +1,4 @@
-# Nusantara 3D
+# Nusantara
 
 An atlas globe you can spin, with the whole world named and only Indonesia
 interactive. The 34 Indonesian provinces stand up off the sphere as data columns
@@ -78,7 +78,7 @@ chart's cursor to it.
 | GDP share by island group | BPS, spatial economic structure 2024 |
 | Province boundaries | BAKOSURTANAL / BIG 1:250,000 base map, via [`ans-4175/peta-indonesia-geojson`](https://github.com/ans-4175/peta-indonesia-geojson) |
 | World country outlines and label anchors | Natural Earth 1:50m Admin 0 |
-| Population 1961–2020, sex ratio | BPS decennial censuses |
+| Population 1961–2020, sex ratio, generational shares | BPS decennial censuses |
 | Investor accounts (SID) | KSEI, year-end |
 | Minimum wages 2025 | provincial governor decrees |
 
@@ -196,6 +196,22 @@ both axes at once — Indonesia is 46 degrees wide and 17 tall, so fitting it by
 width alone would work while fitting a compact province by width alone would put
 the camera inside its own columns.
 
+**Generations come from the census, and add up.** The six cohorts on the
+Indonesia page are the shares BPS published with the 2020 census — they sum to
+exactly 100.00, so the shares are treated as the source of truth and head counts
+are derived from share × census total, with the rounding remainder pushed into
+the largest cohort. `npm run data:audit` re-checks that and 111 other invariants:
+every derived density, every GRDP-per-capita, every SID penetration figure, the
+sex ratio against its own counts, and that the birth-year bands are contiguous
+with no gaps.
+
+**Orbit sensitivity is tied to altitude.** A fixed rotate speed is what makes an
+orbit control feel wrong — the same wrist movement that gently turns the planet
+from far away throws it across the screen once you are down among the provinces,
+because the arc under the cursor shrinks with altitude while the speed does not.
+Both rotate and zoom speed ramp with the square root of altitude, so the surface
+moves at roughly the same rate under the pointer at every zoom level.
+
 **Which build am I looking at?** The version stamp in `src/version.js` is
 rendered in the globe's sources panel and in the Indonesia page footer, so a
 stale cache is visible rather than guessed at.
@@ -218,6 +234,7 @@ npm run data:fetch    # pull the Natural Earth source (3 MB, not vendored)
 npm run data:geo      # src/data/geo.json   — from data/indonesia-prov.geojson
 npm run data:world    # src/data/world.json — from Natural Earth 1:50m
 npm run data:history  # src/data/history.js — 1945-2025 series and milestones
+npm run data:audit    # consistency checks across every generated dataset
 npm run data:stats    # src/data/stats.js   — edit tools/build_stats.py first
 npm run vendor        # refresh vendor/three after bumping the dependency
 ```

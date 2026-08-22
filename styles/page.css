@@ -186,3 +186,58 @@ body.page{
   .chart--tall{height:250px}
   .chart--mid{height:200px}
 }
+
+/* ── Generations ───────────────────────────────────────────────────── */
+.card--gen{margin-bottom:14px}
+.card__note--left{text-align:left;max-width:78ch;margin-top:12px}
+
+.stack{display:flex;gap:3px;margin:14px 0 16px;height:76px}
+.stackseg{
+  position:relative;display:flex;flex-direction:column;justify-content:flex-end;
+  min-width:0;padding:0;border-radius:8px;overflow:hidden;
+  transition:opacity .22s var(--ease),transform .22s var(--ease);
+}
+.stackseg.is-dim{opacity:.32}
+.stackseg:hover,.stackseg:focus-visible{transform:translateY(-2px)}
+.stackseg__bar{
+  position:absolute;inset:0;border-radius:8px;
+  background:linear-gradient(180deg,var(--seg),color-mix(in srgb,var(--seg) 55%,transparent));
+}
+.stackseg__label{
+  position:relative;z-index:1;padding:0 8px 8px;text-align:left;
+  color:#08111d;text-shadow:0 1px 0 rgba(255,255,255,.22);overflow:hidden;
+}
+.stackseg__label b{display:block;font:700 13px/1.1 var(--font);font-variant-numeric:tabular-nums}
+.stackseg__label span{
+  display:block;margin-top:2px;font-size:9.5px;font-weight:600;letter-spacing:.04em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.82;
+}
+
+.genlist{display:grid;gap:1px;background:rgba(255,255,255,.055);border-radius:var(--r-sm);overflow:hidden}
+.genrow{
+  display:grid;grid-template-columns:10px 1fr auto auto;gap:10px;align-items:baseline;
+  padding:9px 12px;background:rgba(11,19,34,.86);transition:background .2s var(--ease);
+}
+.genrow.is-on{background:color-mix(in srgb,var(--seg) 14%,rgba(11,19,34,.86))}
+.genrow__dot{width:8px;height:8px;border-radius:50%;background:var(--seg);align-self:center}
+.genrow__name{font-size:12.5px;font-weight:600}
+.genrow__meta{grid-column:2;grid-row:2;font-size:10.5px;color:var(--fg-3)}
+.genrow__count{font:600 12.5px var(--mono);font-variant-numeric:tabular-nums}
+.genrow__share{font:600 11.5px var(--mono);color:var(--fg-3);min-width:52px;text-align:right}
+
+@media (max-width:700px){
+  .stack{height:auto;flex-direction:column;gap:4px}
+  .stackseg{flex:none!important;height:38px;justify-content:center}
+  .stackseg__label{display:flex;align-items:baseline;gap:8px;padding:0 10px}
+  .stackseg__label b{font-size:12px}
+  .stackseg__label span{margin-top:0}
+  .genrow{grid-template-columns:10px 1fr auto;gap:8px}
+  .genrow__share{grid-column:3;grid-row:2;text-align:right}
+}
+
+/* Narrow cohorts shed their label rather than clipping it; the list below the
+   band still names every one of them. */
+.stackseg.is-narrow .stackseg__label span{display:none}
+.stackseg.is-bare{min-width:18px}
+.stackseg.is-bare .stackseg__label{display:none}
+.sect__stamp{font:500 10.5px var(--mono);color:var(--fg-3);letter-spacing:.03em}

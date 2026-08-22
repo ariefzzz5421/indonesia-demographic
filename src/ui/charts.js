@@ -443,3 +443,53 @@ export function splitDonut(host, { a, b, format }) {
     format,
   };
 }
+
+/**
+ * A 100% stacked band — used for the generation composition. Segments are real
+ * buttons, so the whole thing is keyboard-navigable and each segment can report
+ * a hover or a selection.
+ *
+ * @param {HTMLElement} host
+ * @param {{id,name,value,color,sub?}[]} segments
+ */
+export function stackBar(host, { segments, format, onFocus, onBlur }) {
+  const total = segments.reduce((sum, s) => sum + s.value, 0) || 1;
+
+  host.replaceChildren(...segments.map((segment) => {
+    const share = (segment.value / total) * 100;
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = 'stackseg';
+    cell.dataset.id = segment.id;
+    cell.style.setProperty('--seg', segment.color);
+    // Flex-basis rather than width so very small cohorts still get a sliver.
+    cell.style.flex = `${share} 1 0`;
+    // A 1.9% cohort is about 25 px wide: too narrow for its own name, and
+    // narrower still for both lines. Shed the label in two steps rather than
+    // letting it clip.
+    if (share < 4.5) cell.classList.add('is-bare');
+    else if (share < 9) cell.classList.add('is-narrow');
+    cell.innerHTML = `
+      <span class="stackseg__bar"></span>
+      <span class="stackseg__label">
+        <b>${share.toFixed(2)}%</b>
+        <span>${segment.name}</span>
+      </span>`;
+    cell.title = `${segment.name} — ${format(segment.value)} (${share.toFixed(2)}%)`;
+    cell.setAttribute('aria-label', `${segment.name}: ${format(segment.value)} (${share.toFixed(2)}%)`);
+
+    const focus = () => {
+      for (const other of host.children) other.classList.toggle('is-dim', other !== cell);
+      onFocus?.(segment);
+    };
+    const blur = () => {
+      for (const other of host.children) other.classList.remove('is-dim');
+      onBlur?.();
+    };
+    cell.addEventListener('pointerenter', focus);
+    cell.addEventListener('pointerleave', blur);
+    cell.addEventListener('focus', focus);
+    cell.addEventListener('blur', blur);
+    return cell;
+  }));
+}

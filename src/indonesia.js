@@ -10,7 +10,7 @@
 import { HISTORY } from './data/history.js';
 import { DATA } from './data/stats.js';
 import { BUILD } from './version.js';
-import { timeChart, barList, splitDonut } from './ui/charts.js';
+import { timeChart, barList, splitDonut, stackBar } from './ui/charts.js';
 import { compact, compactTight, idr, num, pct, usd } from './util/format.js';
 import { lang, onLang, setLang, t } from './util/i18n.js';
 
@@ -239,6 +239,53 @@ function renderSex() {
   });
 }
 
+// ── Generations ─────────────────────────────────────────────────────────
+function bornLabel(g) {
+  if (!g.bornFrom) return `${t('page.gen.before')} ${g.bornTo + 1}`;
+  if (!g.bornTo) return `${g.bornFrom} ${t('page.gen.andLater')}`;
+  return `${g.bornFrom}–${g.bornTo}`;
+}
+
+function ageLabel(g) {
+  const ref = HISTORY.generations.referenceYear;
+  if (!g.bornFrom) return `${ref - g.bornTo}+`;
+  if (!g.bornTo) return `≤ ${ref - g.bornFrom}`;
+  return `${g.ageFrom}–${g.ageTo}`;
+}
+
+function renderGenerations() {
+  const gen = HISTORY.generations;
+  const groups = gen.groups;
+
+  $('#genSub').textContent = t('page.gen.sub').replace('{year}', gen.referenceYear);
+
+  stackBar($('#genStack'), {
+    segments: groups.map((g) => ({
+      id: g.id, name: pick(g, 'name'), value: g.count, color: g.color,
+    })),
+    format: (v) => num(v, L()),
+    onFocus: (segment) => {
+      for (const row of $('#genList').children) {
+        row.classList.toggle('is-on', row.dataset.id === segment.id);
+      }
+    },
+    onBlur: () => {
+      for (const row of $('#genList').children) row.classList.remove('is-on');
+    },
+  });
+
+  $('#genList').innerHTML = groups
+    .map((g) => `
+      <div class="genrow" data-id="${g.id}" style="--seg:${g.color}">
+        <span class="genrow__dot"></span>
+        <span class="genrow__name">${pick(g, 'name')}</span>
+        <span class="genrow__meta">${t('page.gen.born')} ${bornLabel(g)} · ${t('page.gen.age')} ${ageLabel(g)} ${t('page.gen.years')}</span>
+        <b class="genrow__count">${compact(g.count, L(), 2)}</b>
+        <span class="genrow__share">${pct(g.share, L(), 2)}</span>
+      </div>`)
+    .join('');
+}
+
 // ── Investors ───────────────────────────────────────────────────────────
 function renderInvestors() {
   const investors = HISTORY.investors;
@@ -256,14 +303,20 @@ function renderInvestors() {
         id: 'stocks', label: t('page.sid.stocks'), color: '#f5c451', axis: 'left', kind: 'line',
         points: investors.filter((d) => d.stocks).map((d) => ({ year: d.year, value: d.stocks, estimated: d.estimated })),
       },
+      {
+        // The whole point of the section: how much of the country this is.
+        id: 'ratio', label: t('page.sid.ratio'), color: '#ff6f9c', axis: 'right', kind: 'line', dash: true,
+        points: investors.map((d) => ({ year: d.year, value: d.penetration, estimated: d.estimated })),
+      },
     ],
-    format: (value) => compact(value, L(), 2),
-    formatAxis: (value) => compactTight(value, L(), 0),
+    format: (value, id) => (id === 'ratio' ? pct(value, L(), 2) : compact(value, L(), 2)),
+    formatAxis: (value, axis) => (axis === 'right' ? `${num(value, L(), 0)}%` : compactTight(value, L(), 0)),
   });
 
   $('#sidLegend').innerHTML = `
     <span><i style="background:#46e3d0"></i>${t('page.sid.total')}</span>
-    <span><i style="background:#f5c451"></i>${t('page.sid.stocks')}</span>`;
+    <span><i style="background:#f5c451"></i>${t('page.sid.stocks')}</span>
+    <span><i style="background:#ff6f9c"></i>${t('page.sid.ratio')}</span>`;
 
   const perInvestor = Math.round(DATA.national.provincePopulationSum / latest.total);
   $('#sidStats').innerHTML = `
@@ -306,14 +359,35 @@ function renderSources() {
 }
 
 // ── Boot ────────────────────────────────────────────────────────────────
+/**
+ * Sections below the fold build themselves the first time they scroll near the
+ * viewport. Three SVG charts and a stacked band is a lot of layout to do before
+ * the reader has seen the top of the page, and none of it is visible yet.
+ */
+const deferred = [];
+function defer(selector, render) {
+  const el = $(selector);
+  const entry = { render, done: false };
+  deferred.push(entry);
+  const run = () => { entry.done = true; render(); };
+  if (!el || typeof IntersectionObserver !== 'function') { run(); return; }
+  const observer = new IntersectionObserver((entries) => {
+    if (!entries.some((e) => e.isIntersecting)) return;
+    observer.disconnect();
+    run();
+  }, { rootMargin: '300px' });
+  observer.observe(el);
+}
+
 function renderAll() {
   renderHero();
   renderMainChart();
   renderTimeline();
   renderLatest();
   renderWages();
-  renderSex();
-  renderInvestors();
+  // Only re-render deferred sections that have already been built; the rest
+  // stay armed and will pick up the current language when they appear.
+  for (const section of deferred) if (section.done) section.render();
   renderSources();
   if (selectedYear !== null) selectMilestone(selectedYear);
 }
@@ -336,6 +410,10 @@ for (const btn of document.querySelectorAll('[data-scale]')) {
     mainChart?.setScale(btn.dataset.scale);
   });
 }
+
+defer('#sect-gen', renderGenerations);
+defer('#sect-sex', renderSex);
+defer('#sect-sid', renderInvestors);
 
 renderAll();
 

@@ -3,11 +3,35 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Nusantara 3D — Atlas Globe Demografi &amp; Ekonomi Indonesia</title>
+<title>Nusantara</title>
 <meta name="description" content="Bola dunia atlas 3D interaktif: putar Bumi, telusuri demografi dan ekonomi Indonesia — 34 unit provinsi, jumlah penduduk, PDB, dan PDB per kapita berdasarkan data BPS, IMF, dan Bank Dunia." />
 <meta name="color-scheme" content="dark" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='16' fill='%23ce1126'/%3E%3Crect y='16' width='32' height='16' fill='%23fff'/%3E%3C/svg%3E" />
 <link rel="stylesheet" href="./styles/main.css" />
+
+<!-- Three.js is only discoverable after main.js parses, which costs a round
+     trip on every visit; announcing it here pulls the 700 KB of engine down in
+     parallel with the module graph rather than after it. -->
+<link rel="modulepreload" href="./src/main.js" />
+<link rel="modulepreload" href="./vendor/three/build/three.module.min.js" />
+<link rel="modulepreload" href="./vendor/three/build/three.core.min.js" />
+
+<script type="module">
+  // The geometry is fetched here rather than declared as <link rel=preload>.
+  // A preload only avoids a second download if its request mode matches the
+  // later fetch() exactly, and when it does not the browser silently pulls
+  // both copies — 780 KB wasted. Starting the real request in the head is
+  // deterministic: exactly one download, begun as early as the parser allows.
+  // main.js consumes these promises and falls back to fetching for itself.
+  const load = (name) =>
+    fetch(`./src/data/${name}`).then((r) => {
+      if (!r.ok) throw new Error(`${name}: ${r.status}`);
+      return r.json();
+    });
+  window.__nusantara = { geo: load('geo.json'), world: load('world.json') };
+  // Nothing awaits these yet; keep an unhandled rejection from reaching the console.
+  for (const p of Object.values(window.__nusantara)) p.catch(() => {});
+</script>
 <script type="importmap">
 {
   "imports": {
@@ -25,7 +49,7 @@
 <div id="boot" class="boot">
   <div class="boot__inner">
     <div class="boot__flag" aria-hidden="true"><i></i><i></i></div>
-    <div class="boot__title">NUSANTARA<span>3D</span></div>
+    <div class="boot__title">NUSANTARA</div>
     <div class="boot__sub" data-i18n="boot.sub">Menyusun 34 unit provinsi &amp; 17.380 pulau</div>
     <div class="boot__bar"><div class="boot__fill" id="bootFill"></div></div>
     <div class="boot__pct" id="bootPct">0%</div>
@@ -38,7 +62,7 @@
   <header class="brand">
     <div class="brand__flag" aria-hidden="true"><i></i><i></i></div>
     <div class="brand__text">
-      <h1>Nusantara<span>3D</span></h1>
+      <h1>Nusantara</h1>
       <p data-i18n="brand.sub">Demografi &amp; ekonomi Republik Indonesia</p>
     </div>
   </header>

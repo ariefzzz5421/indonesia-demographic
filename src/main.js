@@ -30,6 +30,13 @@ const FOCUS_LAT = -2.5;
 const FOCUS_SPAN = 45.8;      // degrees of longitude, Sabang to Merauke
 const JAKARTA = { lon: 106.85, lat: -6.21 };
 
+// Phase timings land in the Performance panel and in `performance.getEntriesByName`,
+// so a slow start can be attributed instead of guessed at.
+const mark = (name) => performance.mark(name);
+const span = (name, from, to) => {
+  try { performance.measure(name, from, to); } catch { /* mark missing */ }
+};
+
 const boot = document.getElementById('boot');
 const bootFill = document.getElementById('bootFill');
 const bootPct = document.getElementById('bootPct');
@@ -54,17 +61,22 @@ function slerpDir(from, to, k, target) {
 
 async function start() {
   progress(0.06);
+  mark('boot:start');
 
+  // The document head starts these downloads during parse; fall back to
+  // fetching here if that inline module did not run.
+  const load = (name) =>
+    fetch(new URL(`./data/${name}`, import.meta.url)).then((r) => {
+      if (!r.ok) throw new Error(`${name}: ${r.status}`);
+      return r.json();
+    });
+  const early = globalThis.__nusantara;
   const [geo, world] = await Promise.all([
-    fetch(new URL('./data/geo.json', import.meta.url)).then((r) => {
-      if (!r.ok) throw new Error(`geo.json: ${r.status}`);
-      return r.json();
-    }),
-    fetch(new URL('./data/world.json', import.meta.url)).then((r) => {
-      if (!r.ok) throw new Error(`world.json: ${r.status}`);
-      return r.json();
-    }),
+    early?.geo ?? load('geo.json'),
+    early?.world ?? load('world.json'),
   ]);
+  mark('boot:data');
+  span('data fetch', 'boot:start', 'boot:data');
   progress(0.28);
 
   const canvas = document.getElementById('stage');
@@ -75,22 +87,31 @@ async function start() {
   scene.add(sky.group);
   progress(0.36);
 
-  // A phone does not need a 4K atlas, and painting one costs real time.
+  // Atlas resolution is the largest single cost in the boot path, and Indonesia
+  // itself is real geometry rather than texture — the atlas only has to keep
+  // other countries' coastlines legible. 3072 gives 8.5 px per degree, which
+  // covers the widest view of the globe with room to spare.
   const globe = createGlobe(world, {
     sunDir: SUN_DIR,
     highlightA3: FOCUS_A3,
-    textureSize: innerWidth < 900 ? 2048 : 4096,
+    textureSize: innerWidth < 900 ? 2048 : 3072,
   });
   scene.add(globe.group);
+  mark('boot:globe');
+  span('globe atlas', 'boot:data', 'boot:globe');
   progress(0.6);
 
   const provinces = createProvinces(geo, { sunDir: SUN_DIR });
   scene.add(provinces.group);
+  mark('boot:provinces');
+  span('province chips', 'boot:globe', 'boot:provinces');
   progress(0.82);
 
   const provinceById = new Map(DATA.provinces.map((p) => [p.id, p]));
   const motes = createMotes(geo, provinces.units, provinceById);
   scene.add(motes.points);
+  mark('boot:motes');
+  span('population motes', 'boot:provinces', 'boot:motes');
   progress(0.9);
 
   const flag = createFlag({
@@ -387,6 +408,8 @@ async function start() {
   });
 
   stage.start();
+  mark('boot:ready');
+  span('total boot', 'boot:start', 'boot:ready');
   progress(1);
 
   // ── Intro ─────────────────────────────────────────────────────────
@@ -425,7 +448,7 @@ async function start() {
 start().catch((err) => {
   console.error(err);
   boot.innerHTML = `<div class="boot__inner">
-    <div class="boot__title">NUSANTARA<span>3D</span></div>
+    <div class="boot__title">NUSANTARA</div>
     <p style="color:#a6b6cd;font-size:13px;line-height:1.6;margin-top:14px">
       Gagal memuat visualisasi.<br><span style="color:#6d7f98;font-size:11.5px">${String(err.message || err)}</span>
     </p></div>`;

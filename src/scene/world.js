@@ -118,6 +118,33 @@ export function createWorld(canvas) {
     }
   }
 
+  /**
+   * Drag and zoom sensitivity scaled to how far the camera is standing off the
+   * globe. A fixed rotate speed is the thing that makes an orbit control feel
+   * wrong: the same wrist movement that gently turns the planet from far away
+   * throws it across the screen once you are down among the provinces, because
+   * the arc under the cursor shrinks with altitude while the speed does not.
+   * Tying both speeds to altitude keeps the surface moving at roughly the same
+   * rate under the pointer at every zoom level.
+   */
+  const SENSITIVITY = {
+    rotate: [0.14, 0.70],
+    zoom: [0.42, 0.92],
+    // Altitude at which sensitivity reaches its far-away maximum.
+    ceiling: GLOBE_RADIUS * 2.2,
+  };
+
+  function tuneSensitivity() {
+    const altitude = camera.position.length() - GLOBE_RADIUS;
+    // Square root so the change is felt early in the zoom rather than all at
+    // the far end, which is where a linear ramp puts it.
+    const t = Math.sqrt(THREE.MathUtils.clamp(altitude / SENSITIVITY.ceiling, 0, 1));
+    const [rLo, rHi] = SENSITIVITY.rotate;
+    const [zLo, zHi] = SENSITIVITY.zoom;
+    controls.rotateSpeed = rLo + (rHi - rLo) * t;
+    controls.zoomSpeed = zLo + (zHi - zLo) * t;
+  }
+
   const clock = new THREE.Clock();
   const updaters = [];
   const onFrame = (fn) => updaters.push(fn);
@@ -149,6 +176,7 @@ export function createWorld(canvas) {
     const elapsed = clock.elapsedTime;
     watchPerformance();
     stepTweens(wallDt);
+    tuneSensitivity();
     controls.update();
     for (const fn of updaters) fn(dt, elapsed, wallDt);
     composer.render();
@@ -162,6 +190,11 @@ export function createWorld(canvas) {
 
   return {
     renderer, scene, camera, controls, composer, bloom,
-    onFrame, onQuality, quality, resize, start: loop,
+    onFrame, onQuality, quality, resize,
+    // Schedule the first frame rather than running one inline: shader
+    // compilation and the first render are the longest single block in the
+    // boot, and doing it synchronously holds up DOMContentLoaded and the
+    // loader's own paint behind it.
+    start: () => requestAnimationFrame(loop),
   };
 }
