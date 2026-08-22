@@ -4,7 +4,7 @@
  * can read off the screen instead of guessing at a cache.
  */
 if (document.getElementById('sect-wages')) {
-  import('./wage-expand.js');
+  import('./wage-data-corrections.js').then(() => import('./wage-expand.js'));
   import('./bogor-logo-fix.js');
 }
 
