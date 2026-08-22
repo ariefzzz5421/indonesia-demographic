@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="id" data-lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Indonesia 1945–2025 — Momen, Angka, dan Situasi Terkini</title>
+<meta name="description" content="Perjalanan Indonesia dari Proklamasi 1945 hingga 2025: momen-momen penting, krisis 1998, grafik interaktif penduduk dan PDB, upah minimum tertinggi, komposisi penduduk, dan pertumbuhan investor pasar modal." />
+<meta name="color-scheme" content="dark" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='16' fill='%23ce1126'/%3E%3Crect y='16' width='32' height='16' fill='%23fff'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="./styles/main.css" />
+<link rel="stylesheet" href="./styles/page.css" />
+</head>
+<body class="page">
+
+<div class="page__glow" aria-hidden="true"></div>
+
+<header class="pagehead">
+  <a class="brand brand--static" href="./index.html">
+    <span class="brand__flag" aria-hidden="true"><i></i><i></i></span>
+    <span class="brand__text">
+      <span class="brand__title">Nusantara<span>3D</span></span>
+      <span class="brand__sub" data-i18n="brand.sub">Demografi &amp; ekonomi Republik Indonesia</span>
+    </span>
+  </a>
+  <div class="pagehead__right">
+    <nav class="nav">
+      <a class="nav__link" href="./index.html">Globe</a>
+      <a class="nav__link is-on" href="./indonesia.html" aria-current="page">Indonesia</a>
+    </nav>
+    <div class="seg" role="group" aria-label="Language">
+      <button class="seg__btn is-on" data-lang-set="id">ID</button>
+      <button class="seg__btn" data-lang-set="en">EN</button>
+    </div>
+  </div>
+</header>
+
+<main class="page__main">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero__eyebrow" data-i18n="page.eyebrow">17 Agustus 1945 — sekarang</div>
+    <h1 class="hero__title" data-i18n="page.title">Delapan puluh tahun Republik Indonesia</h1>
+    <p class="hero__lead" data-i18n="page.lead">
+      Dari 70 juta jiwa dan ekonomi yang belum terukur, menjadi 284 juta jiwa dan
+      produk domestik bruto US$1,4 triliun. Ini perjalanannya — beserta angka-angka
+      yang menandai setiap belokan tajamnya.
+    </p>
+    <div class="hero__stats" id="heroStats"></div>
+  </section>
+
+  <!-- The long chart -->
+  <section class="sect" id="sect-chart">
+    <div class="sect__head">
+      <div>
+        <div class="sect__eyebrow" data-i18n="page.chart.eyebrow">Garis waktu</div>
+        <h2 data-i18n="page.chart.title">Penduduk dan PDB, 1945–2025</h2>
+      </div>
+      <div class="sect__tools">
+        <div class="seg seg--sm" role="group" aria-label="Skala">
+          <button class="seg__btn is-on" data-scale="linear" data-i18n="page.chart.linear">Linear</button>
+          <button class="seg__btn" data-scale="log" data-i18n="page.chart.log">Logaritmik</button>
+        </div>
+      </div>
+    </div>
+    <p class="sect__note" data-i18n="page.chart.hint">
+      Arahkan kursor atau geser untuk membaca setiap tahun · klik satu tahun untuk melompat ke momen terdekat ·
+      titik bulat menandai sensus resmi, garis di antaranya adalah interpolasi.
+    </p>
+    <div class="card card--chart">
+      <div class="chart chart--tall" id="mainChart"></div>
+      <div class="legend-row" id="mainLegend"></div>
+    </div>
+  </section>
+
+  <!-- Milestones -->
+  <section class="sect" id="sect-moments">
+    <div class="sect__head">
+      <div>
+        <div class="sect__eyebrow" data-i18n="page.moments.eyebrow">Momen penting</div>
+        <h2 data-i18n="page.moments.title">Belokan-belokan tajam</h2>
+      </div>
+      <div class="sect__tools" id="eraFilter"></div>
+    </div>
+    <ol class="timeline" id="timeline"></ol>
+  </section>
+
+  <!-- Now -->
+  <section class="sect" id="sect-now">
+    <div class="sect__head">
+      <div>
+        <div class="sect__eyebrow" data-i18n="page.now.eyebrow">Situasi terkini</div>
+        <h2 data-i18n="page.now.title">Di mana Indonesia berdiri hari ini</h2>
+      </div>
+    </div>
+    <div class="statgrid" id="latestStats"></div>
+  </section>
+
+  <!-- Wages -->
+  <section class="sect" id="sect-wages">
+    <div class="sect__head">
+      <div>
+        <div class="sect__eyebrow" data-i18n="page.wage.eyebrow">Upah minimum 2025</div>
+        <h2 data-i18n="page.wage.title">Sepuluh daerah dengan UMK tertinggi</h2>
+      </div>
+    </div>
+    <div class="split">
+      <div class="card">
+        <div class="barlist" id="wageList"></div>
+      </div>
+      <aside class="card card--side" id="wageDetail"></aside>
+    </div>
+    <p class="sect__note" data-i18n="page.wage.note">
+      Angka UMK 2025 ditetapkan lewat keputusan gubernur setelah kenaikan upah minimum nasional 6,5 persen.
+      DKI Jakarta tidak menetapkan UMK per kabupaten/kota, sehingga yang ditampilkan adalah UMP provinsi.
+    </p>
+  </section>
+
+  <!-- Sex composition -->
+  <section class="sect" id="sect-sex">
+    <div class="sect__head">
+      <div>
+        <div class="sect__eyebrow" data-i18n="page.sex.eyebrow">Komposisi penduduk</div>
+        <h2 data-i18n="page.sex.title">Laki-laki dan perempuan</h2>
+      </div>
+    </div>
+    <div class="split split--even">
+      <div class="card card--center">
+        <div id="sexDonut" class="donutwrap"></div>
+        <div class="donut-legend" id="sexLegend"></div>
+        <p class="card__note" id="sexNote"></p>
+      </div>
+      <div class="card">
+        <div class="card__title" data-i18n="page.sex.ratioTitle">Rasio jenis kelamin per sensus</div>
+        <div class="card__sub" data-i18n="page.sex.ratioSub">Laki-laki per 100 perempuan</div>
+        <div class="chart chart--mid" id="ratioChart"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Investors -->
+  <section class="sect" id="sect-sid">
+    <div class="sect__head">
+      <div>
+        <div class="sect__eyebrow" data-i18n="page.sid.eyebrow">Pasar modal</div>
+        <h2 data-i18n="page.sid.title">Investor terdaftar dibanding jumlah penduduk</h2>
+      </div>
+    </div>
+    <div class="split">
+      <div class="card card--chart">
+        <div class="chart chart--mid" id="sidChart"></div>
+        <div class="legend-row" id="sidLegend"></div>
+      </div>
+      <aside class="card card--side" id="sidStats"></aside>
+    </div>
+    <p class="sect__note" data-i18n="page.sid.note">
+      SID (Single Investor Identification) adalah nomor identitas tunggal investor pasar modal yang diterbitkan KSEI.
+      Satu orang hanya memiliki satu SID, sehingga angkanya dapat dibandingkan langsung dengan jumlah penduduk.
+      Angka 2025 adalah estimasi.
+    </p>
+  </section>
+
+  <footer class="pagefoot">
+    <div class="pagefoot__cols" id="sources"></div>
+    <div class="pagefoot__meta">
+      <span id="buildStamp"></span>
+      <a href="./index.html" data-i18n="page.backToGlobe">← Kembali ke bola dunia</a>
+    </div>
+  </footer>
+</main>
+
+<script type="module" src="./src/indonesia.js"></script>
+</body>
+</html>

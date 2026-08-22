@@ -44,6 +44,10 @@
   </header>
 
   <div class="topright">
+    <nav class="nav">
+      <a class="nav__link is-on" href="./index.html" aria-current="page">Globe</a>
+      <a class="nav__link" href="./indonesia.html">Indonesia</a>
+    </nav>
     <div class="seg" role="group" aria-label="Language">
       <button class="seg__btn is-on" data-lang-set="id">ID</button>
       <button class="seg__btn" data-lang-set="en">EN</button>
@@ -93,12 +97,13 @@
     <div class="spark">
       <div class="spark__head">
         <span data-i18n="spark.title">PDB nominal &amp; penduduk</span>
-        <span class="spark__yr">2015–2025</span>
+        <span class="spark__yr">1945–2025</span>
       </div>
-      <svg id="sparkSvg" viewBox="0 0 260 76" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="chart chart--compact" id="railChart"></div>
       <div class="spark__legend">
         <span><i class="sw sw--gdp"></i>PDB</span>
         <span><i class="sw sw--pop"></i><span data-i18n="spark.pop">Penduduk</span></span>
+        <a class="spark__more" href="./indonesia.html" data-i18n="spark.more">Lihat lengkap →</a>
       </div>
     </div>
 
