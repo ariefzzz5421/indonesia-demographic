@@ -1,8 +1,8 @@
 /**
- * Corrections verified against the official Kemnaker 2025 wage appendix.
+ * Corrections verified against official 2025 Kemnaker/governor wage documents.
  * Kept separate so the compact city dataset stays easy to audit and update.
  */
-import { CITY_WAGES_2025, COMPARE_WAGES_2025 } from './data/wages-2025.js';
+import { CITY_WAGES_2025, COMPARE_WAGES_2025, LOWEST_WAGES_2025 } from './data/wages-2025.js';
 
 const corrections = new Map([
   ['Kota Makassar', { value: 3880137, basis: 'UMK' }],
@@ -24,3 +24,14 @@ function apply(items) {
 
 apply(CITY_WAGES_2025);
 apply(COMPARE_WAGES_2025);
+
+const brebes = LOWEST_WAGES_2025.find((item) => item.name === 'Kabupaten Brebes');
+if (brebes) {
+  brebes.value = 2239801.50;
+  brebes.annual = brebes.value * 12;
+}
+const compareBrebes = COMPARE_WAGES_2025.find((item) => item.name === 'Kabupaten Brebes');
+if (compareBrebes) {
+  compareBrebes.value = 2239801.50;
+  compareBrebes.annual = compareBrebes.value * 12;
+}
