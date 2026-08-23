@@ -1,26 +1,34 @@
 /**
  * Kota Bogor crest hardening.
- * A new square PNG filename avoids the stale/broken asset cached by the CDN,
- * while the DOM fixer also replaces any earlier Bogor image injected by the
- * wage-ranking or comparison modules.
+ * Use the full-resolution crest asset and force contain sizing everywhere so
+ * the emblem never gets cropped inside the compact wage UI.
  */
-const CACHE_VERSION = '20260823-crest-v4';
-const bogorLogo = new URL('../assets/region-logos/kota-bogor-v4.png', import.meta.url).href;
+const CACHE_VERSION = '20260823-crest-v5';
+const bogorLogo = new URL('../assets/region-logos/kota-bogor.png', import.meta.url).href;
 
 const style = document.createElement('style');
 style.textContent = `
+  #wageList .barrow__region-logo,
+  #wageDetail .wage-detail__crest,
+  #wageCompare .wc-logo{
+    display:grid!important;
+    place-items:center!important;
+    overflow:hidden!important;
+  }
   #wageList .barrow__region-logo img[data-bogor-logo],
   #wageDetail .wage-detail__crest img[data-bogor-logo],
   #wageCompare .wc-logo img[data-bogor-logo]{
     display:block!important;
-    width:calc(100% - 6px)!important;
-    height:calc(100% - 6px)!important;
+    width:calc(100% - 8px)!important;
+    height:calc(100% - 8px)!important;
     max-width:100%!important;
     max-height:100%!important;
     object-fit:contain!important;
-    object-position:center!important;
+    object-position:center center!important;
     margin:auto!important;
+    padding:0!important;
     transform:none!important;
+    clip-path:none!important;
   }
 `;
 document.head.append(style);
@@ -104,6 +112,8 @@ function fixLooseImages() {
     else {
       img.src = `${bogorLogo}?v=${CACHE_VERSION}`;
       img.dataset.bogorLogo = CACHE_VERSION;
+      img.style.objectFit = 'contain';
+      img.style.objectPosition = 'center';
     }
   }
 }
@@ -134,9 +144,6 @@ function boot() {
   observer.observe(wageSection, { childList: true, subtree: true });
   wageSection.addEventListener('click', schedule);
   wageSection.addEventListener('change', schedule);
-
-  // Deferred wage modules render shortly after page boot. A few short retries
-  // make the crest deterministic without a permanent interval.
   [50, 150, 400, 900].forEach((ms) => setTimeout(fixBogor, ms));
 }
 
