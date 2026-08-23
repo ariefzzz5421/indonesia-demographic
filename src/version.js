@@ -12,7 +12,7 @@ if (document.getElementById('sect-wages')) {
 if (document.getElementById('sect-gen')) import('./generation-icons.js');
 
 export const BUILD = {
-  version: '3.4.1',
+  version: '3.4.2',
   date: '2026-08-23',
-  name: '3D generation avatars + Bogor crest v4',
+  name: 'HD generation portraits + full Bogor crest',
 };
