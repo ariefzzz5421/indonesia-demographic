@@ -1,8 +1,9 @@
 /**
  * Bumped whenever something user-visible ships. Shown in the sources modal and
- * in the page footer so "am I looking at the latest build?" has an answer you
- * can read off the screen instead of guessing at a cache.
+ * footer so the current build is easy to verify after a Vercel deployment.
  */
+import('./layout-polish.js');
+
 if (document.getElementById('sect-wages')) {
   import('./wage-data-corrections.js')
     .then(() => import('./wage-expand.js'))
@@ -34,7 +35,7 @@ if (moments) {
 }
 
 export const BUILD = {
-  version: '3.5.0',
-  date: '2026-08-23',
-  name: 'presidential timeline + crisp generation portraits',
+  version: '3.5.1',
+  date: '2026-08-24',
+  name: 'layout polish + official Bogor crest + stable generation portraits',
 };
