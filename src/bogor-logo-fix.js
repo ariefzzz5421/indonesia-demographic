@@ -1,14 +1,33 @@
 /**
- * Hardens Kota Bogor emblem rendering across the wage ranking, detail card,
- * and comparison UI. The query string is intentionally versioned because an
- * earlier deployment served an invalid image at the same static path.
+ * Kota Bogor crest hardening.
+ * A new square PNG filename avoids the stale/broken asset cached by the CDN,
+ * while the DOM fixer also replaces any earlier Bogor image injected by the
+ * wage-ranking or comparison modules.
  */
-const CACHE_VERSION = '20260823-2';
-const bogorLogo = `${new URL('../assets/region-logos/kota-bogor.png', import.meta.url).href}?v=${CACHE_VERSION}`;
+const CACHE_VERSION = '20260823-crest-v4';
+const bogorLogo = new URL('../assets/region-logos/kota-bogor-v4.png', import.meta.url).href;
+
+const style = document.createElement('style');
+style.textContent = `
+  #wageList .barrow__region-logo img[data-bogor-logo],
+  #wageDetail .wage-detail__crest img[data-bogor-logo],
+  #wageCompare .wc-logo img[data-bogor-logo]{
+    display:block!important;
+    width:calc(100% - 6px)!important;
+    height:calc(100% - 6px)!important;
+    max-width:100%!important;
+    max-height:100%!important;
+    object-fit:contain!important;
+    object-position:center!important;
+    margin:auto!important;
+    transform:none!important;
+  }
+`;
+document.head.append(style);
 
 function makeImage() {
   const img = document.createElement('img');
-  img.src = bogorLogo;
+  img.src = `${bogorLogo}?v=${CACHE_VERSION}`;
   img.alt = 'Lambang Kota Bogor';
   img.loading = 'eager';
   img.decoding = 'async';
@@ -19,9 +38,8 @@ function makeImage() {
 function ensureImage(slot) {
   if (!slot) return;
   const current = slot.querySelector('img');
-  if (current?.dataset.bogorLogo === CACHE_VERSION || current?.src === bogorLogo) return;
-  current?.remove();
-  slot.append(makeImage());
+  if (current?.dataset.bogorLogo === CACHE_VERSION) return;
+  slot.replaceChildren(makeImage());
 }
 
 function fixRanking() {
@@ -58,7 +76,6 @@ function fixDetail() {
     head = document.createElement('div');
     head.className = 'wage-detail__head';
     head.dataset.name = 'Kota Bogor';
-
     const crest = document.createElement('span');
     crest.className = 'wage-detail__crest';
     const copy = document.createElement('div');
@@ -74,8 +91,7 @@ function fixComparison() {
   const compare = document.getElementById('wageCompare');
   if (!compare) return;
   for (const card of compare.querySelectorAll('.wc-city')) {
-    const name = card.querySelector('.wc-name')?.textContent?.trim();
-    if (name !== 'Kota Bogor') continue;
+    if (card.querySelector('.wc-name')?.textContent?.trim() !== 'Kota Bogor') continue;
     ensureImage(card.querySelector('.wc-logo'));
   }
 }
@@ -83,8 +99,12 @@ function fixComparison() {
 function fixLooseImages() {
   for (const img of document.querySelectorAll('img[alt*="Kota Bogor"]')) {
     if (img.dataset.bogorLogo === CACHE_VERSION) continue;
-    img.src = bogorLogo;
-    img.dataset.bogorLogo = CACHE_VERSION;
+    const parent = img.parentElement;
+    if (parent) ensureImage(parent);
+    else {
+      img.src = `${bogorLogo}?v=${CACHE_VERSION}`;
+      img.dataset.bogorLogo = CACHE_VERSION;
+    }
   }
 }
 
@@ -99,18 +119,25 @@ function boot() {
   fixBogor();
   const wageSection = document.getElementById('sect-wages');
   if (!wageSection) return;
+
   let queued = false;
-  const observer = new MutationObserver(() => {
+  const schedule = () => {
     if (queued) return;
     queued = true;
     requestAnimationFrame(() => {
       queued = false;
       fixBogor();
     });
-  });
+  };
+
+  const observer = new MutationObserver(schedule);
   observer.observe(wageSection, { childList: true, subtree: true });
-  wageSection.addEventListener('click', () => requestAnimationFrame(fixBogor));
-  wageSection.addEventListener('change', () => requestAnimationFrame(fixBogor));
+  wageSection.addEventListener('click', schedule);
+  wageSection.addEventListener('change', schedule);
+
+  // Deferred wage modules render shortly after page boot. A few short retries
+  // make the crest deterministic without a permanent interval.
+  [50, 150, 400, 900].forEach((ms) => setTimeout(fixBogor, ms));
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
