@@ -1,34 +1,25 @@
 /**
  * Kota Bogor crest hardening.
- * Use the full-resolution crest asset and force contain sizing everywhere so
- * the emblem never gets cropped inside the compact wage UI.
+ * Uses the freshly downloaded official Pemkot Bogor crest under a new filename
+ * so stale browser/Vercel caches cannot keep serving the previously cropped asset.
  */
-const CACHE_VERSION = '20260823-crest-v5';
-const bogorLogo = new URL('../assets/region-logos/kota-bogor.png', import.meta.url).href;
+const CACHE_VERSION = '20260824-bogor-v7';
+const bogorLogo = new URL('../assets/region-logos/kota-bogor-official.png', import.meta.url).href;
 
 const style = document.createElement('style');
 style.textContent = `
   #wageList .barrow__region-logo,
   #wageDetail .wage-detail__crest,
   #wageCompare .wc-logo{
-    display:grid!important;
-    place-items:center!important;
-    overflow:hidden!important;
+    display:grid!important;place-items:center!important;overflow:hidden!important;
   }
   #wageList .barrow__region-logo img[data-bogor-logo],
   #wageDetail .wage-detail__crest img[data-bogor-logo],
   #wageCompare .wc-logo img[data-bogor-logo]{
-    display:block!important;
-    width:calc(100% - 8px)!important;
-    height:calc(100% - 8px)!important;
-    max-width:100%!important;
-    max-height:100%!important;
-    object-fit:contain!important;
-    object-position:center center!important;
-    margin:auto!important;
-    padding:0!important;
-    transform:none!important;
-    clip-path:none!important;
+    display:block!important;width:calc(100% - 8px)!important;height:calc(100% - 8px)!important;
+    max-width:100%!important;max-height:100%!important;object-fit:contain!important;
+    object-position:center!important;margin:auto!important;padding:0!important;
+    transform:none!important;clip-path:none!important;filter:drop-shadow(0 2px 4px rgba(0,0,0,.22));
   }
 `;
 document.head.append(style);
@@ -57,7 +48,6 @@ function fixRanking() {
     (node) => node.querySelector('.barrow__name')?.textContent?.trim() === 'Kota Bogor'
   );
   if (!row) return;
-
   let slot = row.querySelector('.barrow__region-logo');
   if (!slot) {
     const body = row.querySelector('.barrow__body');
@@ -77,75 +67,46 @@ function fixDetail() {
   if (!wageList || !wageDetail) return;
   const activeName = wageList.querySelector('.barrow.is-on .barrow__name')?.textContent?.trim();
   if (activeName !== 'Kota Bogor') return;
-
-  let head = wageDetail.querySelector('.wage-detail__head');
-  if (!head || head.dataset.name !== 'Kota Bogor') {
-    head?.remove();
-    head = document.createElement('div');
-    head.className = 'wage-detail__head';
-    head.dataset.name = 'Kota Bogor';
-    const crest = document.createElement('span');
-    crest.className = 'wage-detail__crest';
-    const copy = document.createElement('div');
-    copy.className = 'wage-detail__copy';
-    copy.innerHTML = '<span class="wage-detail__eyebrow">Lambang daerah</span><strong class="wage-detail__name">Kota Bogor</strong>';
-    head.append(crest, copy);
-    wageDetail.prepend(head);
-  }
-  ensureImage(head.querySelector('.wage-detail__crest'));
+  const crest = wageDetail.querySelector('.wage-detail__crest');
+  if (crest) ensureImage(crest);
 }
 
 function fixComparison() {
   const compare = document.getElementById('wageCompare');
   if (!compare) return;
   for (const card of compare.querySelectorAll('.wc-city')) {
-    if (card.querySelector('.wc-name')?.textContent?.trim() !== 'Kota Bogor') continue;
-    ensureImage(card.querySelector('.wc-logo'));
+    if (card.querySelector('.wc-name')?.textContent?.trim() === 'Kota Bogor') {
+      ensureImage(card.querySelector('.wc-logo'));
+    }
   }
 }
 
 function fixLooseImages() {
   for (const img of document.querySelectorAll('img[alt*="Kota Bogor"]')) {
-    if (img.dataset.bogorLogo === CACHE_VERSION) continue;
     const parent = img.parentElement;
     if (parent) ensureImage(parent);
-    else {
-      img.src = `${bogorLogo}?v=${CACHE_VERSION}`;
-      img.dataset.bogorLogo = CACHE_VERSION;
-      img.style.objectFit = 'contain';
-      img.style.objectPosition = 'center';
-    }
   }
 }
 
 function fixBogor() {
-  fixRanking();
-  fixDetail();
-  fixComparison();
-  fixLooseImages();
+  fixRanking();fixDetail();fixComparison();fixLooseImages();
 }
 
 function boot() {
   fixBogor();
   const wageSection = document.getElementById('sect-wages');
   if (!wageSection) return;
-
   let queued = false;
   const schedule = () => {
     if (queued) return;
     queued = true;
-    requestAnimationFrame(() => {
-      queued = false;
-      fixBogor();
-    });
+    requestAnimationFrame(() => { queued = false; fixBogor(); });
   };
-
-  const observer = new MutationObserver(schedule);
-  observer.observe(wageSection, { childList: true, subtree: true });
+  new MutationObserver(schedule).observe(wageSection, { childList:true, subtree:true });
   wageSection.addEventListener('click', schedule);
   wageSection.addEventListener('change', schedule);
-  [50, 150, 400, 900].forEach((ms) => setTimeout(fixBogor, ms));
+  [50,150,400,900].forEach((ms) => setTimeout(fixBogor, ms));
 }
 
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once:true });
 else boot();
